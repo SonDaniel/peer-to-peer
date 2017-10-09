@@ -1,4 +1,5 @@
-import socket, socketserver, subprocess, ipaddress
+import socket, socketserver, subprocess, ipaddress, AF_INET, SOCK_DGRAM
+# Support thread if not available 
 try:
     import threading
 except ImportError:
@@ -20,6 +21,11 @@ class Network:
         ip_net = ipaddress.ip_network(net_addr)
         # Get all hosts on the network 
         all_hosts = list(ip_net.hosts())
+
+    def connect_socket():
+        my_socket = socket( AF_INET, SOCK_DGRAM )
+        my_socket.connect((SERVER_IP,PORT_NUMBER))
+
 
     # Scan network based off net_addr
     def scan_network():
