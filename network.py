@@ -1,4 +1,5 @@
-import socket, socketserver, subprocess, ipaddress, AF_INET, SOCK_DGRAM
+import socket, socketserver, subprocess, ipaddress
+
 # Support thread if not available 
 try:
     import threading
@@ -7,28 +8,32 @@ except ImportError:
 
 class Network:
     # Network Address 
-    net_addr = '192.168.1.0/24'
+    broadcast_ip = None
     ip_net = None
     all_hosts = None
-    ip_address = None
+    my_ip = None
+    my_socket = None
+
+    localnet_ip = None
+    port_number = None
+
+    threads = []
 
     # Network Constructor 
     def __init__(self):
-        # Get self IP 
-        ip_address = socket.gethostbyname(socket.getfqdn())
+        print('Node setup...')
+        # Get self IP using Socket Library
+        self.my_ip = socket.gethostbyname(socket.getfqdn())
+        print("Current IP Address: ", self.my_ip)
 
         # Create network
-        ip_net = ipaddress.ip_network(net_addr)
-        # Get all hosts on the network 
-        all_hosts = list(ip_net.hosts())
+        self.broadcast_ip = ipaddress.inet_ntoa( inet_aton(self.my_ip)[:3] + b'\xff')
+        print('Broadcast IP: ', self.broadcast_ip)
 
-    def connect_socket():
-        my_socket = socket( AF_INET, SOCK_DGRAM )
-        my_socket.connect((SERVER_IP,PORT_NUMBER))
+        # self.ip_net = ipaddress.ip_network(self.net_addr)
+        # # Get all hosts on the network 
+        # self.all_hosts = list(self.ip_net.hosts())
 
-
-    # Scan network based off net_addr
-    def scan_network():
-        for i in range(len(all_hosts)):
-            output = subprocess.Popen(['ping', '-n', '1', '-w', '500', str(all_hosts[i])], stdout=subprocess.PIPE, startupinfo=info).communicate()[0]
-            # TO DO: ping each hosts, if online, then do something
+    def connect_socket(self):
+        self.my_socket = socket.socket()
+        self.my_socket.connect((self.localnet_ip,self.port_number))
