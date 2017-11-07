@@ -1,4 +1,5 @@
-import socket, socketserver, subprocess, ipaddress, os, re
+# TODO: Make a description of class and all
+import socket, socketserver, subprocess, ipaddress, os, re, multiprocessing
 
 # Support thread if not available 
 try:
@@ -9,13 +10,11 @@ except ImportError:
 class Network:
     DISCOVER_PORT = 9000
     FILE_TRANSFER_PORT = 10000
+    TIMEOUT = 5  # in seconds
+    CONCURRENCY = 100  # how many pings in parallel?
 
-    # Network Address 
-    # 10.0.0.0/8 : figure out in lab
-    # 192.168.0.0/16 : 0/24
-    network_range = ''
-    ip_net = None
-    all_hosts = None
+    base_ip = None
+
     my_ip = None
     my_socket = None
 
@@ -37,36 +36,49 @@ class Network:
         self.my_ip = response[1]
         print("Current IP Address: ", self.my_ip)
 
-        # Create network
-        base_ip = '.'.join(re.split('\.', self.my_ip)[:-1])
-        self.network_range = base_ip + '.0/24'
-        print("Network Range: ", self.network_range)
-        self.ip_net = ipaddress.ip_network(self.network_range)
+        # Create IP
+        self.base_ip = '.'.join(re.split('\.', self.my_ip)[:-1])
+        print("Base IP: ", self.base_ip)
 
-        # Get all hosts on the network 
-        self.all_hosts = list(self.ip_net.hosts())
+        # Discovering network through ping
+        self.ping_network()
+        self.scan_network()
 
-    def connect_socket(self):
+    def connect_socket(self, ip):
         self.my_socket = socket.socket()
-        self.my_socket.connect((self.localnet_ip,self.port_number))
+        self.my_socket.connect((ip, self.DISCOVER_PORT))
+
+    def listen_socket(self):
+        return
+
+    def ping_network(self):
+        # TODO: Need to optimize ping (use 5 threads)
+        # You need to port scan to see if nodes port is open
+        # if port is open, add to ip list
+        # keep port open, create new thread and new port
+        # disconnect connection port and start listening again
+        ips = (self.base_ip + '.%d' % i for i in range(1, 255))
+
+        with multiprocessing.Pool(self.CONCURRENCY) as p:
+            p.map(self.ping, ips)
+
+    def ping(self, ip):
+        subprocess.call(
+            ['ping', '-W', str(self.TIMEOUT), '-c', '1', ip],
+            stdout=subprocess.DEVNULL)
 
     def scan_network(self):
-        # TODO: Need to optimize ping (use threads?)
-        # network_list = list(ipaddress.ip_network(self.network_range).hosts())
-        # For each IP address in the subnet, 
-        # run the ping command with subprocess.popen interface
-        # for i in range(len(self.all_hosts)):
-        #     with open(os.devnull, "w") as f:
-        #         subprocess.call(['ping', '-c', '1', '-W', '1', str(self.all_hosts[i])], stdout=f)
-
         # discover online IP's after ping
         arp_output = subprocess.check_output(['arp', '-a']).decode('utf-8')
         
         online_ip = []
+
         # Regex for 192.168.-, 10.0.-, 172.16.-
         for ip in re.findall('(192\.168\.\d*\.\d*)|(10\.0\.\d*\.\d*)|(172\.16\.\d*\.\d*)', arp_output):
             # Remove empty string from tuple
             online_ip.append(list(filter(None, ip))[0])
+
         # Make List unique (duplicate IPs)
         online_ip = list(set(online_ip))
+
         print(online_ip)

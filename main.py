@@ -19,4 +19,3 @@ except OSError as e:
         raise
 
 net = Network()
-net.scan_network()
