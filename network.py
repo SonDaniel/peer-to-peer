@@ -1,11 +1,6 @@
 # TODO: Make a description of class and all
-import socket, socketserver, subprocess, ipaddress, os, re, multiprocessing
-
-# Support thread if not available 
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading
+import socket, socketserver, subprocess, ipaddress, os, re, multiprocessing, sys
+import thread
 
 class Network:
     DISCOVER_PORT = 9000
@@ -14,11 +9,12 @@ class Network:
     CONCURRENCY = 100  # how many pings in parallel?
 
     base_ip = None
-
     my_ip = None
-    my_socket = None
 
-    localnet_ip = None
+    listen_socket = None
+    discover_socket = None
+    file_socket = None
+    localnet_ips = None
 
     threads = []
 
@@ -42,14 +38,64 @@ class Network:
 
         # Discovering network through ping
         self.ping_network()
-        self.scan_network()
+
+    def create_socket(self):
+        try:
+            return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print "Socket successfully created"
+        except socket.error as err:
+            print "socket creation failed with error %s" %(err)
+            return None
 
     def connect_socket(self, ip):
-        self.my_socket = socket.socket()
-        self.my_socket.connect((ip, self.DISCOVER_PORT))
+        self.discover_socket = self.create_socket()
+        while True:
+            # loop through list to see if connection works
+            for x in self.localnet_ips:
+                try:
+                    self.discover_socket.connect((x, self.DISCOVER_PORT))
+                    print("Connected to %s:%s" % (x, self.DISCOVER_PORT))
+                    return True
+                except socket.error as err:
+                    print("Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))
+                    return False
+                
+
+            time.sleep(3)
 
     def listen_socket(self):
-        return
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.listen_socket.bind(self.my_ip, self.DISCOVER_PORT)
+        except socket.error as err:
+            print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
+            sys.exit()
+        # Start listening for connections
+        self.listen_socket.listen()
+        #now keep talking with the client
+        while 1:
+            # Wait for connection
+            conn, addr = self.listen_socket.accept()
+            print('Connected with ' + addr[0] + ':' + str(addr[1]))
+            
+            #start new thread takes 1st argument as a function name to be run, second is the tuple of arguments to the function.
+            thread.start_new_thread(client_connection_thread, (conn))
+        
+        s.close()
+
+        def client_connection_thread(conn):
+            # Infinite loop so thread does not end
+            while True:
+                #Receiving from client
+                data = conn.recv(1024)
+                # reply = 'OK...' + data
+                if data === -1:
+                    break
+            
+                # conn.sendall(reply)
+            
+            #came out of loop
+            conn.close()
 
     def ping_network(self):
         # TODO: Need to optimize ping (use 5 threads)
@@ -79,6 +125,4 @@ class Network:
             online_ip.append(list(filter(None, ip))[0])
 
         # Make List unique (duplicate IPs)
-        online_ip = list(set(online_ip))
-
-        print(online_ip)
+        self.localnet_ips = list(set(online_ip))
