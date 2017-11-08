@@ -3,3 +3,4 @@ __pycache__/*
 network.pyc
 main.pyc
 test.py
+sync/**

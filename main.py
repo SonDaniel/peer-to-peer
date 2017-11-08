@@ -8,6 +8,7 @@ import os, errno, time
 
 file_path = "./sync/"
 directory = os.path.dirname(file_path)
+net = Network()
 
 # Set folder for sync
 try:
@@ -15,10 +16,12 @@ try:
     os.makedirs(directory)
 except OSError as e:
     # Ignore if folder is there
+    net.get_files(file_path)
+    # Some other error
     if e.errno != errno.EEXIST:
         raise
 
-net = Network()
+# net.scan_network()
 
 # p1 = Process(target=net.scan_network())
 # p2 = Process(target=net.connect_socket())
