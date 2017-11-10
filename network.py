@@ -115,7 +115,7 @@ class Network:
 
             self.file_socket.listen(1)
 
-            while 1:
+            # while 1:
                 # TODO: need to make logic to disconnect from discover port while letting file port continue
 
             # start new thread takes 1st argument as a function name to be run
@@ -167,8 +167,10 @@ class Network:
 
         # Regex for 192.168.-, 10.0.-, 172.16.- with mac address
         for ip in re.findall('((192\.168\.\d*\.\d*)|(10\.0\.\d*\.\d*)|(172\.16\.\d*\.\d*))(\W*)(at\W)(.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2})', arp_output):
-            # Remove empty string from tuple
-            online_ip.append(list(filter(None, ip))[0])
+            # do not save my IP in list
+            if ip != self.my_ip:
+                # Remove empty string from tuple
+                online_ip.append(list(filter(None, ip))[0])
 
         # Make List unique (duplicate IPs)
         self.localnet_ips = list(set(online_ip))
