@@ -64,20 +64,22 @@ class Network:
                     self.discover_socket.connect((x, self.DISCOVER_PORT))
                     print("Connected to %s:%s" % (x, self.DISCOVER_PORT))
 
+                    # Send FILE_TRANSFER_PORT to ip
+                    self.discover_socket.sendall(str(self.FILE_TRANSFER_PORT).encode())
+
                     # create file socket
-                    self.file_socket = self.create_socket()
+                    file_socket = self.create_socket()
 
                     try:
-                        self.file_socket.connect((x, self.FILE_TRANSFER_PORT))
+                        file_socket.connect((x, self.FILE_TRANSFER_PORT))
                         print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
+                        self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
                         
                     except socket.error as e:
                         print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
-                        break
 
                 except socket.error as err:
                     print("Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))
-                    return False
 
             # TODO: Debug this section if delay actually happens 
             # Delay by 3 seconds 
@@ -104,23 +106,27 @@ class Network:
         while 1:
             # Wait for connection to be accepted
             conn, addr = self.listen_socket.accept()
-            print('Connected with ' + addr[0] + ':' + str(addr[1]))
-            
+            print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
+
+            with conn:
+                file_port = int(conn.recv(1024).decode())
+
             # Listener port will create file socket to persist
-            self.file_socket = self.create_socket()
-            self.file_socket.bind(self.my_ip, self.FILE_TRANSFER_PORT)
+            file_socket = self.create_socket()
+            file_socket.bind(self.my_ip, file_port)
 
-            # increment file transfer port for no interference
-            self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
+            file_socket.listen(1)
 
-            self.file_socket.listen(1)
-
-            # while 1:
+            while 1:
+                file_conn, file_addr = file_socket.accept()
+                print('Connected File Protocol with ' + addr[0] + ':' + str(add[1]))
+                break # remove this
+            break # remove this
                 # TODO: need to make logic to disconnect from discover port while letting file port continue
 
             # start new thread takes 1st argument as a function name to be run
             # second is the tuple of arguments to the function.
-            _thread.start_new_thread(client_connection_thread, (conn))
+            # _thread.start_new_thread(client_connection_thread, (conn))
         
         s.close()
 
@@ -162,15 +168,15 @@ class Network:
     def scan_network(self):
         # discover online IP's after ping
         arp_output = subprocess.check_output(['arp', '-a']).decode('utf-8')
-        
         online_ip = []
-
+        
         # Regex for 192.168.-, 10.0.-, 172.16.- with mac address
-        for ip in re.findall('((192\.168\.\d*\.\d*)|(10\.0\.\d*\.\d*)|(172\.16\.\d*\.\d*))(\W*)(at\W)(.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2})', arp_output):
+        for ip in re.findall('((192\.168\.\d*\.\d*)|(10\.\d*\.\d*\.\d*)|(172\.16\.\d*\.\d*))(\W*)(at\W)(.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2})', arp_output):
             # do not save my IP in list
-            if ip != self.my_ip:
+            stripped_ip = list(filter(None, ip))[0]
+            if stripped_ip != self.my_ip:
                 # Remove empty string from tuple
-                online_ip.append(list(filter(None, ip))[0])
-
+                online_ip.append(stripped_ip)
+                    
         # Make List unique (duplicate IPs)
         self.localnet_ips = list(set(online_ip))

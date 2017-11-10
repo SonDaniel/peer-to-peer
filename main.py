@@ -21,10 +21,10 @@ except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
-# net.scan_network()
+net.scan_network()
 
-# p1 = Process(target=net.scan_network())
-# p2 = Process(target=net.connect_socket())
-# while True:
-#     p1.start()
-#     p2.start()
+p1 = Process(target=net.listen_socket())
+p2 = Process(target=net.connect_socket())
+while True:
+    p1.start()
+    p2.start()
