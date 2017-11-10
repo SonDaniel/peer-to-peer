@@ -47,7 +47,6 @@ class Network:
     def create_socket(self):
         try:
             return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print("Socket successfully created")
         except socket.error as err:
             print("socket creation failed with error %s" %(err))
             return None
@@ -91,7 +90,7 @@ class Network:
 
         try:
             # Bind socket to listen to own IP
-            self.listen_socket.bind(self.my_ip, self.DISCOVER_PORT)
+            self.listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
         except socket.error as err:
             # If you cannot bind, exit out of program
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
@@ -113,7 +112,7 @@ class Network:
 
             # Listener port will create file socket to persist
             file_socket = self.create_socket()
-            file_socket.bind(self.my_ip, file_port)
+            file_socket.bind((self.my_ip, file_port))
 
             file_socket.listen(1)
 
