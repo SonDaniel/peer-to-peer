@@ -51,7 +51,7 @@ class Network:
             print("socket creation failed with error %s" %(err))
             return None
 
-    def connect_socket(self, ip):
+    def connect_socket(self):
         # Initialize discovery socket
         self.discover_socket = self.create_socket()
 

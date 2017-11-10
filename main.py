@@ -23,10 +23,9 @@ except OSError as e:
 
 net.scan_network()
 
-p1 = Process(target=net.listen_socket())
-p2 = Process(target=net.connect_socket())
-while True:
-    print('process 1 : start')
-    p1.start()
-    print('process 2 : start')
-    p2.start()
+p1 = Process(target=net.listen_socket)
+p2 = Process(target=net.connect_socket)
+print('process 1 : start')
+p1.start()
+print('process 2 : start')
+p2.start()
