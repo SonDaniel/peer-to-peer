@@ -1,5 +1,6 @@
 # TODO: Make a description of class and all
-import socket, socketserver, subprocess, ipaddress, os, re, multiprocessing, sys, _thread, json, datetime
+import socket, socketserver, subprocess, ipaddress, os, re
+import multiprocessing, sys, _thread, json, datetime, time
 
 class Network:
     DISCOVER_PORT = 9000
@@ -39,10 +40,15 @@ class Network:
         self.ping_network()
 
     def get_files(self, file_path):
-        files = os.listdir(file_path)
-        for x in files:
-            stats = os.stat((file_path + '/' + x))
-            self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
+        while True:
+            files = os.listdir(file_path)
+            for x in files:
+                stats = os.stat((file_path + '/' + x))
+                self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
+            print('sleep for now')
+            time.sleep(5)
+
+
 
     def create_socket(self):
         try:
@@ -73,7 +79,17 @@ class Network:
                         file_socket.connect((x, self.FILE_TRANSFER_PORT))
                         print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
                         self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
-                        
+
+                        # Send all data
+                        file_socket.sendall(str({
+                            'ips': self.localnet_ips,
+                            'files': self.hash_files
+                            }).encode())
+
+                        data = json(file_socket.recv(1024))
+                        ips_diff = set(self.localnet_ips) - set(data['ips'])
+                        file_diff = set(self.hash_files)
+
                     except socket.error as e:
                         print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
 
@@ -119,30 +135,33 @@ class Network:
             while 1:
                 file_conn, file_addr = file_socket.accept()
                 print('Connected File Protocol with ' + addr[0] + ':' + str(add[1]))
-                break # remove this
-            break # remove this
-                # TODO: need to make logic to disconnect from discover port while letting file port continue
+                with file_conn:
+                    data = json(file_conn.recv(1024).decode()))
+                    file_conn.sendall(str({
+                        'ips': self.localnet_ips,
+                        'files': self.hash_files
+                    }).encode())
+                    ips_diff = set(self.localnet_ips) - set(data['ips'])
 
-            # start new thread takes 1st argument as a function name to be run
-            # second is the tuple of arguments to the function.
-            # _thread.start_new_thread(client_connection_thread, (conn))
+
+                # TODO: need to make logic to disconnect from discover port while letting file port continue
         
         s.close()
 
-        def client_connection_thread(conn):
-            # Infinite loop so thread does not end
-            while True:
-                #Receiving from client
-                data = conn.recv(1024)
+    def client_connection_thread(conn):
+        # Infinite loop so thread does not end
+        while True:
+            #Receiving from client
+            data = conn.recv(1024)
 
-                # reply = 'OK...' + data
-                if data == -1:
-                    break
-            
-                # conn.sendall(reply)
-            
-            #came out of loop
-            conn.close()
+            # reply = 'OK...' + data
+            if data == -1:
+                break
+        
+            # conn.sendall(reply)
+        
+        #came out of loop
+        conn.close()
 
     def ping_network(self):
         # TODO: Need to optimize ping (use 5 threads)
