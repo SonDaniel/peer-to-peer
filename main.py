@@ -6,7 +6,6 @@ from multiprocessing import Process
 from network import Network
 import os, errno, time
 
-file_path = "./sync/"
 directory = os.path.dirname(file_path)
 net = Network()
 
@@ -16,7 +15,7 @@ try:
     os.makedirs(directory)
 except OSError as e:
     # Ignore if folder is there
-    net.get_files(file_path)
+    net.get_files()
     # Some other error
     if e.errno != errno.EEXIST:
         raise

@@ -7,7 +7,7 @@ class Network:
     FILE_TRANSFER_PORT = 10000
     TIMEOUT = 5  # in seconds
     CONCURRENCY = 100  # how many pings in parallel?
-
+    FILE_PATH = './sync/'
     base_ip = None
     my_ip = None
 
@@ -48,6 +48,17 @@ class Network:
             print('sleep for now')
             time.sleep(5)
 
+    def get_diff(obj_1, obj_2):
+        diff = {}
+        for key in obj_1.keys():
+            value = obj_1[key]
+            if key not in a:
+                diff[key] = value
+            else:
+                if a[key] != value:
+                    diff[key] = value
+
+        return diff
 
 
     def create_socket(self):
@@ -86,9 +97,25 @@ class Network:
                             'files': self.hash_files
                             }).encode())
 
+                        # Recieve data
                         data = json(file_socket.recv(1024))
+
+                        # Calculate differences
                         ips_diff = set(self.localnet_ips) - set(data['ips'])
-                        file_diff = set(self.hash_files)
+                        file_diff = self.get_diff(self.hash_files, data['files'])
+
+                        # Send differences
+                        file_socket.sendall(str({
+                            'ips_diff' : ips_diff,
+                            'file_diff': file_diff
+                        }))
+
+                        data_diff = json(file_socket.recv(1024))
+
+                        for fileName in data_diff['file_diff']:
+                            file_data = file_socket.recv(1024)
+                            downloadFile = open()
+
 
                     except socket.error as e:
                         print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
@@ -136,32 +163,54 @@ class Network:
                 file_conn, file_addr = file_socket.accept()
                 print('Connected File Protocol with ' + addr[0] + ':' + str(add[1]))
                 with file_conn:
-                    data = json(file_conn.recv(1024).decode()))
+                    data = json(file_conn.recv(1024).decode())
                     file_conn.sendall(str({
                         'ips': self.localnet_ips,
                         'files': self.hash_files
                     }).encode())
-                    ips_diff = set(self.localnet_ips) - set(data['ips'])
 
+                    # Calculate differences
+                    ips_diff = set(self.localnet_ips) - set(data['ips'])
+                    file_diff = self.get_diff(self.hash_files, data['files'])
+
+                    data_diff = json(file_conn.recv(1024).decode())
+
+                    file_conn.sendall(str({
+                        'ips_diff': ips_diff,
+                        'file_diff': file_diff
+                    }))
+
+                    # create infinite loop to send files, then break when ip_diff and file_diff done
+                    while True:
+                        for diff_ip in data_diff['ips_diff']:
+                            self.localnet_ips.append(diff_ip)
+                        
+                        for diff_file in data_diff['file_diff']:
+                            try:
+                                with open(diff_file, 'r') as f:
+                                    file = f.read()
+                                    file_conn.sendall(file)
+                            except IOError:
+                                print('file: ', diff_file, ' not found')
 
                 # TODO: need to make logic to disconnect from discover port while letting file port continue
         
         s.close()
 
-    def client_connection_thread(conn):
-        # Infinite loop so thread does not end
-        while True:
-            #Receiving from client
-            data = conn.recv(1024)
+    # def client_connection_thread(conn):
+    #     # Infinite loop so thread does not end
+    #     while True:
+    #         #Receiving from client
+    #         data = conn.recv(1024)
 
-            # reply = 'OK...' + data
-            if data == -1:
-                break
+    #         # reply = 'OK...' + data
+    #         if data == -1:
+    #             break
         
-            # conn.sendall(reply)
+    #         # conn.sendall(reply)
         
-        #came out of loop
-        conn.close()
+    #     #came out of loop
+    #     conn.close()
 
     def ping_network(self):
         # TODO: Need to optimize ping (use 5 threads)
