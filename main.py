@@ -6,7 +6,7 @@ from multiprocessing import Process
 from network import Network
 import os, errno, time
 
-directory = os.path.dirname(file_path)
+directory = os.path.dirname('./sync/')
 net = Network()
 
 # Set folder for sync
