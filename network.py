@@ -51,7 +51,6 @@ class Network:
                 stats = os.stat((self.FILE_PATH + '/' + x))
                 # save file stats
                 self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
-            print('sleep for now')
 
             # Sleep process for 5 seconds
             time.sleep(5)
