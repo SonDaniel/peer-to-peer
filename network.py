@@ -43,12 +43,12 @@ class Network:
     def get_files(self):
         while True:
             # Get list of file directory
-            files = os.listdir(self.file_path)
+            files = os.listdir(self.FILE_PATH)
             
             # Go through each file and get stats
             for x in files:
                 # Get stats for file
-                stats = os.stat((self.file_path + '/' + x))
+                stats = os.stat((self.FILE_PATH + '/' + x))
                 # save file stats
                 self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
             print('sleep for now')
