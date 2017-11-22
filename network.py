@@ -22,6 +22,7 @@ class Network:
     def __init__(self):
         print('Node setup...')
         print('Finding my IP...')
+
         # Get self IP using Socket Library
         ifconfig_call = subprocess.check_output('ifconfig').decode('utf-8')
 
@@ -39,13 +40,20 @@ class Network:
         # Discovering network through ping
         self.ping_network()
 
-    def get_files(self, file_path):
+    def get_files(self):
         while True:
-            files = os.listdir(file_path)
+            # Get list of file directory
+            files = os.listdir(self.file_path)
+            
+            # Go through each file and get stats
             for x in files:
-                stats = os.stat((file_path + '/' + x))
+                # Get stats for file
+                stats = os.stat((self.file_path + '/' + x))
+                # save file stats
                 self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
             print('sleep for now')
+
+            # Sleep process for 5 seconds
             time.sleep(5)
 
     def get_diff(obj_1, obj_2):
@@ -77,6 +85,7 @@ class Network:
             # loop through list to see if connection works
             for x in self.localnet_ips:
                 try:
+                    # Try to connect to other ends discovery port 
                     self.discover_socket.connect((x, self.DISCOVER_PORT))
                     print("Connected to %s:%s" % (x, self.DISCOVER_PORT))
 
@@ -87,7 +96,9 @@ class Network:
                     file_socket = self.create_socket()
 
                     try:
+                        # try to connect to other end file socket
                         file_socket.connect((x, self.FILE_TRANSFER_PORT))
+
                         print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
                         self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
 
@@ -112,10 +123,16 @@ class Network:
 
                         data_diff = json(file_socket.recv(1024))
 
+                        ##########################################################
+                        #                Logic to receive file                   #
+                        ##########################################################
                         for fileName in data_diff['file_diff']:
                             file_data = file_socket.recv(1024)
-                            downloadFile = open()
-
+                            downloadFile = open((self.FILE_PATH, fileName), 'wb')
+                            while file_data:
+                                downloadFile.write(file_data)
+                                file_data = file_socket.recv(1024)
+                        
 
                     except socket.error as e:
                         print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
@@ -151,6 +168,7 @@ class Network:
             print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
             with conn:
+                # get file port number from other end
                 file_port = int(conn.recv(1024).decode())
 
             # Listener port will create file socket to persist
@@ -160,10 +178,15 @@ class Network:
             file_socket.listen(1)
 
             while 1:
+                # accept connection from other end
                 file_conn, file_addr = file_socket.accept()
                 print('Connected File Protocol with ' + addr[0] + ':' + str(add[1]))
+
                 with file_conn:
+                    # Recieve data from other end
                     data = json(file_conn.recv(1024).decode())
+
+                    # Send my data to other end
                     file_conn.sendall(str({
                         'ips': self.localnet_ips,
                         'files': self.hash_files
@@ -173,8 +196,14 @@ class Network:
                     ips_diff = set(self.localnet_ips) - set(data['ips'])
                     file_diff = self.get_diff(self.hash_files, data['files'])
 
+                    # Receive difference object data from other end
                     data_diff = json(file_conn.recv(1024).decode())
 
+                    # Concat difference of IP List
+                    for diff_ip in data_diff['ips_diff'].keys():
+                        self.localnet_ips.append(diff_ip)
+
+                    # Send object of difference
                     file_conn.sendall(str({
                         'ips_diff': ips_diff,
                         'file_diff': file_diff
@@ -182,16 +211,26 @@ class Network:
 
                     # create infinite loop to send files, then break when ip_diff and file_diff done
                     while True:
-                        for diff_ip in data_diff['ips_diff']:
-                            self.localnet_ips.append(diff_ip)
                         
                         for diff_file in data_diff['file_diff']:
                             try:
-                                with open(diff_file, 'r') as f:
-                                    file = f.read()
-                                    file_conn.sendall(file)
+                                ##########################################################
+                                #                Logic to send file                      #
+                                ##########################################################
+                                with open((self.FILE_PATH, diff_file), 'r') as f:
+                                    fileRead = f.read(1024)
+                                    while fileRead:
+                                        file_conn.send(fileRead)
+                                        fileRead = f.read(1024)
+                                # Add or overwrite value of data
+                                self.hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
                             except IOError:
                                 print('file: ', diff_file, ' not found')
+                        break
+
+
+                    
+
 
                 # TODO: need to make logic to disconnect from discover port while letting file port continue
         
@@ -213,12 +252,6 @@ class Network:
     #     conn.close()
 
     def ping_network(self):
-        # TODO: Need to optimize ping (use 5 threads)
-        # You need to port scan to see if nodes port is open
-        # if port is open, add to ip list
-        # keep port open, create new thread and new port
-        # disconnect connection port and start listening again
-
         # create range of ips from base ip - 1:255
         ips = (self.base_ip + '.%d' % i for i in range(1, 255))
 
@@ -241,6 +274,7 @@ class Network:
         for ip in re.findall('((192\.168\.\d*\.\d*)|(10\.\d*\.\d*\.\d*)|(172\.16\.\d*\.\d*))(\W*)(at\W)(.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2}:.{1,2})', arp_output):
             # do not save my IP in list
             stripped_ip = list(filter(None, ip))[0]
+            
             if stripped_ip != self.my_ip:
                 # Remove empty string from tuple
                 online_ip.append(stripped_ip)
