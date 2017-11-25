@@ -87,7 +87,7 @@ class Network:
             for x in self.localnet_ips:
                 try:
                     # Try to connect to other ends discovery port 
-                    self.discover_socket.connect((x, self.DISCOVER_PORT))
+                    self.discover_socket.connect(x, self.DISCOVER_PORT)
                     print("Connected to %s:%s" % (x, self.DISCOVER_PORT))
 
                     # Send FILE_TRANSFER_PORT to ip
@@ -151,7 +151,7 @@ class Network:
 
         try:
             # Bind socket to listen to own IP
-            self.listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
+            self.listen_socket.bind(self.my_ip, self.DISCOVER_PORT)
         except socket.error as err:
             # If you cannot bind, exit out of program
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
