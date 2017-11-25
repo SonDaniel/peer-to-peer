@@ -112,7 +112,7 @@ class Network:
                             }).encode())
 
                         # Recieve data
-                        data = json(file_socket.recv(1024))
+                        data = json(file_socket.recv(1024).decode())
 
                         # Calculate differences
                         ips_diff = set(self.localnet_ips) - set(data['ips'])
@@ -122,9 +122,9 @@ class Network:
                         file_socket.sendall(str({
                             'ips_diff' : ips_diff,
                             'file_diff': file_diff
-                        }))
+                        }).encode())
 
-                        data_diff = json(file_socket.recv(1024))
+                        data_diff = json(file_socket.recv(1024).decode())
 
                         ##########################################################
                         #                Logic to receive file                   #
@@ -209,7 +209,7 @@ class Network:
                         file_conn.sendall(str({
                             'ips_diff': ips_diff,
                             'file_diff': file_diff
-                        }))
+                        }).encode())
 
                         # create infinite loop to send files, then break when ip_diff and file_diff done
                         while True:
