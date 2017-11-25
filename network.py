@@ -71,7 +71,9 @@ class Network:
 
     def create_socket(self):
         try:
-            return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            create_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            return create_socket
         except socket.error as err:
             print("socket creation failed with error %s" %(err))
             return None
