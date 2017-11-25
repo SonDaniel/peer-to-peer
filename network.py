@@ -90,7 +90,7 @@ class Network:
                 try:
                     # Try to connect to other ends discovery port 
                     self.discover_socket.connect((x, self.DISCOVER_PORT))
-                    print("Connected to %s:%s" % (x, self.DISCOVER_PORT))
+                    print("Discovery Connected to %s:%s" % (x, self.DISCOVER_PORT))
 
                     # Send FILE_TRANSFER_PORT to ip
                     self.discover_socket.sendall(str(self.FILE_TRANSFER_PORT).encode())
@@ -138,10 +138,10 @@ class Network:
                         
 
                     except socket.error as e:
-                        print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
+                        print("File Transfer Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
 
                 except socket.error as err:
-                    print("Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))\
+                    print("Discovery Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))\
             # Delay by 3 seconds 
             time.sleep(3)
 
@@ -182,7 +182,7 @@ class Network:
                 while 1:
                     # accept connection from other end
                     file_conn, file_addr = file_socket.accept()
-                    print('Connected File Protocol with ' + addr[0] + ':' + str(add[1]))
+                    print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
 
                     with file_conn:
                         # Recieve data from other end
