@@ -42,6 +42,7 @@ class Network:
 
     def get_files(self):
         while True:
+            print('get_files function running.')
             # Get list of file directory
             files = os.listdir(self.FILE_PATH)
             
@@ -81,6 +82,7 @@ class Network:
 
         # infinite loop to listen for local IPs
         while True:
+            print('connect_socket running')
             # loop through list to see if connection works
             for x in self.localnet_ips:
                 try:
@@ -162,6 +164,7 @@ class Network:
 
         # While loop keeps waiting for connection
         while 1:
+            print('listen_socket running')
             # Wait for connection to be accepted
             conn, addr = self.listen_socket.accept()
             print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
