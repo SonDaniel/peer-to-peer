@@ -139,9 +139,7 @@ class Network:
                         print("Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
 
                 except socket.error as err:
-                    print("Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))
-
-            # TODO: Debug this section if delay actually happens 
+                    print("Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))\
             # Delay by 3 seconds 
             time.sleep(3)
 
@@ -150,7 +148,6 @@ class Network:
         self.listen_socket = self.create_socket()
 
         while True:
-            print('listen_socket running')
             try:
                 # Bind socket to listen to own IP
                 self.listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
@@ -165,6 +162,7 @@ class Network:
 
             # While loop keeps waiting for connection
             while 1:
+                print('listen_socket running')
                 # Wait for connection to be accepted
                 conn, addr = self.listen_socket.accept()
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
@@ -236,7 +234,7 @@ class Network:
 
                     # TODO: need to make logic to disconnect from discover port while letting file port continue
             
-            s.close()
+            time.sleep(3)
 
     # def client_connection_thread(conn):
     #     # Infinite loop so thread does not end
