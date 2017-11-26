@@ -3,10 +3,10 @@ import socket, socketserver, subprocess, ipaddress, os, re
 import multiprocessing, sys, _thread, json, datetime, time
 
 class Network:
-    DISCOVER_PORT = 9000
-    FILE_TRANSFER_PORT = 10000
+    DISCOVER_PORT = 10000
+    FILE_TRANSFER_PORT = 10001
     TIMEOUT = 5  # in seconds
-    CONCURRENCY = 100  # how many pings in parallel?
+    CONCURRENCY = 100  # how many pings in parallel
     FILE_PATH = './sync/'
     base_ip = None
     my_ip = None
@@ -72,6 +72,7 @@ class Network:
     def create_socket(self):
         try:
             create_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             return create_socket
         except socket.error as err:
@@ -155,13 +156,14 @@ class Network:
 
             # Start listening for connections
             # Integer means to allow up to x un-accept()ed incoming TCP connections
-            self.listen_socket.listen()
+            self.listen_socket.listen(10)
 
             # While loop keeps waiting for connection
-            while 1:
+            while True:
                 print('listen_socket running')
                 # Wait for connection to be accepted
                 conn, addr = self.listen_socket.accept()
+                self.listen_socket.settimeout(3)
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
                 with conn:
@@ -231,7 +233,7 @@ class Network:
 
                     # TODO: need to make logic to disconnect from discover port while letting file port continue
             
-            time.sleep(3)
+                time.sleep(3)
         except socket.error as err:
             # If you cannot bind, exit out of program
             print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
