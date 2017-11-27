@@ -4,9 +4,9 @@
 # Lab #1: Peer to Peer Networks
 
 # from threading import Thread
-import multiprocessing as mp
+from threading import Thread
 from network import Network
-import os, errno
+import os, errno, time
 
 directory = os.path.dirname('./sync/')
 net = Network()
@@ -24,9 +24,9 @@ except OSError as e:
 net.scan_network()
 
 if __name__ == '__main__':
-    p1 = mp.Process(target=net.listen_socket)
-    p2 = mp.Process(target=net.connect_socket)
-    p3 = mp.Process(target=net.get_files)
+    p1 = Thread(target=net.listen_socket)
+    p2 = Thread(target=net.connect_socket)
+    p3 = Thread(target=net.get_files)
 
     print('thread 1 start: listen sockets')
     p1.start()
