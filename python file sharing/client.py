@@ -46,7 +46,10 @@ try:
 
     try:
         # try to connect to other end file socket
-        file_socket.connect((IP, FILE_TRANSFER_PORT))
+        while True:
+            code = file_socket.connect_ex((IP, FILE_TRANSFER_PORT))
+            if code == 0:
+                break
 
         print("connected to %s:%s File Transfer Socket" % (x, FILE_TRANSFER_PORT))
         FILE_TRANSFER_PORT = FILE_TRANSFER_PORT + 1
