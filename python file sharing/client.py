@@ -1,8 +1,8 @@
 import socket, os, datetime
 
 IP = '192.168.1.8'
-PORT = 10000
-FILE_TRANSFER_PORT = 10001
+PORT = 3000
+FILE_TRANSFER_PORT = 3001
 FILE_PATH = '../sync/'
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 hash_files = {}
@@ -43,25 +43,23 @@ try:
 
     # create file socket
     file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    file_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
+        my_socket.recv(1024)
         # try to connect to other end file socket
-        while True:
-            code = file_socket.connect_ex((IP, FILE_TRANSFER_PORT))
-            if code == 0:
-                break
+        file_socket.connect((IP, FILE_TRANSFER_PORT))
 
-        print("connected to %s:%s File Transfer Socket" % (x, FILE_TRANSFER_PORT))
-        FILE_TRANSFER_PORT = FILE_TRANSFER_PORT + 1
-
+        print("connected to %s:%s File Transfer Socket" % (IP, FILE_TRANSFER_PORT))
+        
+        # Recieve data
+        data = file_socket.recv(1024).decode()
+        
         # Send all data
         file_socket.sendall(str({
             'ips': localnet_ips,
             'files': hash_files
             }).encode())
-
-        # Recieve data
-        data = json.dumps(file_socket.recv(1024).decode())
 
         # Calculate differences
         ips_diff = set(localnet_ips) - set(data['ips'])
@@ -73,7 +71,7 @@ try:
             'file_diff': file_diff
         }).encode())
 
-        data_diff = json.dumps(file_socket.recv(1024).decode())
+        data_diff = file_socket.recv(1024).decode()
 
         ##########################################################
         #                Logic to receive file                   #
