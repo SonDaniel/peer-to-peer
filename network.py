@@ -102,7 +102,9 @@ class Network:
 
                     try:
                         # try to connect to other end file socket
-                        file_socket.connect((x, self.FILE_TRANSFER_PORT))
+                        while file_socket.connect_ex((x, self.FILE_TRANSFER_PORT)):
+                            # keep looping to connect
+                            
 
                         print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
                         self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
