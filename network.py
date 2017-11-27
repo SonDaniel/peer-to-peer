@@ -38,7 +38,7 @@ class Network:
         print("Base IP: ", self.base_ip)
 
         # Discovering network through ping
-        self.ping_network()
+        # self.ping_network()
 
     def get_files(self):
         while True:
@@ -156,14 +156,13 @@ class Network:
 
             # Start listening for connections
             # Integer means to allow up to x un-accept()ed incoming TCP connections
-            self.listen_socket.listen(10)
+            self.listen_socket.listen(1)
 
             # While loop keeps waiting for connection
             while True:
                 print('listen_socket running')
                 # Wait for connection to be accepted
                 conn, addr = self.listen_socket.accept()
-                self.listen_socket.settimeout(3)
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
                 with conn:
@@ -176,7 +175,7 @@ class Network:
 
                 file_socket.listen(1)
 
-                while 1:
+                while True:
                     # accept connection from other end
                     file_conn, file_addr = file_socket.accept()
                     print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
@@ -236,7 +235,7 @@ class Network:
                 time.sleep(3)
         except socket.error as err:
             # If you cannot bind, exit out of program
-            print('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
+            print('Bind failed. Error Code : ' + str(err.errno))
 
     # def client_connection_thread(conn):
     #     # Infinite loop so thread does not end
