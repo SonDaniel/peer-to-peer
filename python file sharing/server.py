@@ -1,23 +1,36 @@
-import socket
+import socket, os, datetime
+
 IP = '192.168.1.8'
 PORT = 10000
 FILE_TRANSFER_PORT = 10001
 FILE_PATH = '../sync/'
 listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-hast_files = {}
+hash_files = {}
+localnet_ips = [3,4,5]
+
+def get_diff(obj_1, obj_2):
+    diff = {}
+    for key in obj_1.keys():
+        value = obj_1[key]
+        if key not in a:
+            diff[key] = value
+        else:
+            if a[key] != value:
+                diff[key] = value
+
+    return diff
 
 def get_files():
-    while True:
-        print('get_files function running.')
-        # Get list of file directory
-        files = os.listdir(FILE_PATH)
-        
-        # Go through each file and get stats
-        for x in files:
-            # Get stats for file
-            stats = os.stat((FILE_PATH + '/' + x))
-            # save file stats
-            hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
+    print('get_files function running.')
+    # Get list of file directory
+    files = os.listdir(FILE_PATH)
+    
+    # Go through each file and get stats
+    for x in files:
+        # Get stats for file
+        stats = os.stat((FILE_PATH + '/' + x))
+        # save file stats
+        hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
 
 get_files()
 
@@ -27,7 +40,7 @@ try:
 
     # Start listening for connections
     # Integer means to allow up to x un-accept()ed incoming TCP connections
-    self.listen_socket.listen(1)
+    listen_socket.listen(1)
 
     # While loop keeps waiting for connection
     while True:
@@ -41,8 +54,8 @@ try:
             file_port = int(conn.recv(1024).decode())
 
         # Listener port will create file socket to persist
-        file_socket = self.create_socket()
-        file_socket.bind((self.my_ip, file_port))
+        file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        file_socket.bind((IP, file_port))
 
         file_socket.listen(1)
 
@@ -57,20 +70,20 @@ try:
 
                 # Send my data to other end
                 file_conn.sendall(str({
-                    'ips': self.localnet_ips,
-                    'files': self.hash_files
+                    'ips': localnet_ips,
+                    'files': hash_files
                 }).encode())
 
                 # Calculate differences
-                ips_diff = set(self.localnet_ips) - set(data['ips'])
-                file_diff = self.get_diff(self.hash_files, data['files'])
+                ips_diff = set(localnet_ips) - set(data['ips'])
+                file_diff = get_diff(hash_files, data['files'])
 
                 # Receive difference object data from other end
                 data_diff = json.dumps(file_conn.recv(1024).decode())
 
                 # Concat difference of IP List
                 for diff_ip in data_diff['ips_diff'].keys():
-                    self.localnet_ips.append(diff_ip)
+                    localnet_ips.append(diff_ip)
 
                 # Send object of difference
                 file_conn.sendall(str({
@@ -86,13 +99,13 @@ try:
                             ##########################################################
                             #                Logic to send file                      #
                             ##########################################################
-                            with open((self.FILE_PATH, diff_file), 'r') as f:
+                            with open((FILE_PATH, diff_file), 'r') as f:
                                 fileRead = f.read(1024)
                                 while fileRead:
                                     file_conn.send(fileRead)
                                     fileRead = f.read(1024)
                             # Add or overwrite value of data
-                            self.hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
+                            hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
                         except IOError:
                             print('file: ', diff_file, ' not found')
                     break
