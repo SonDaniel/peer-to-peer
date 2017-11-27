@@ -7,7 +7,7 @@ FILE_PATH = '../sync/'
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 hast_files = {}
 
-def get_files(self):
+def get_files():
     while True:
         print('get_files function running.')
         # Get list of file directory
