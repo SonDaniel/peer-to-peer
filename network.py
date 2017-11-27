@@ -104,12 +104,11 @@ class Network:
 
                         try:
                             while True:
-                                print('trying to connect to file transfer socket')
                                 # try to connect to other end file socket
                                 if not (file_socket.connect_ex((x, self.FILE_TRANSFER_PORT))):
+                                    print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
                                     break
-
-                            print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
+                                
                             self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
 
                             # Send all data
@@ -181,7 +180,7 @@ class Network:
             # If you cannot bind, exit out of program
             print('Bind failed. Error Code : ' + str(err.errno))
 
-    def client_connection_thread(conn, addr):
+    def client_connection_thread(self,conn, addr):
         with conn:
             # get file port number from other end
             file_port = int(conn.recv(1024).decode())
