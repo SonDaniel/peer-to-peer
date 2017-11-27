@@ -146,7 +146,7 @@ class Network:
                         print("File Transfer Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
 
                 except socket.error as err:
-                    print("Discovery Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))\
+                    print("Discovery Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))
             # Delay by 3 seconds 
             time.sleep(3)
 

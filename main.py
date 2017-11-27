@@ -8,22 +8,20 @@ from threading import Thread
 from network import Network
 import os, errno, time
 
-directory = os.path.dirname('./sync/')
-net = Network()
-
-# Set folder for sync
-try:
-    # Create folder
-    os.makedirs(directory)
-except OSError as e:
-    # Ignore if folder is there
-    # Some other error
-    if e.errno != errno.EEXIST:
-        raise
-
-net.scan_network()
-
 if __name__ == '__main__':
+    directory = os.path.dirname('./sync/')
+    net = Network()
+
+    # Set folder for sync
+    try:
+        # Create folder
+        os.makedirs(directory)
+    except OSError as e:
+        # Ignore if folder is there
+        # Some other error
+        if e.errno != errno.EEXIST:
+            raise
+    net.scan_network()
     p1 = Thread(target=net.listen_socket)
     p2 = Thread(target=net.connect_socket)
     p3 = Thread(target=net.get_files)
