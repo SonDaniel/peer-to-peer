@@ -91,64 +91,69 @@ class Network:
             for x in self.localnet_ips:
                 try:
                     # Try to connect to other ends discovery port 
-                    self.discover_socket.connect((x, self.DISCOVER_PORT))
-                    print("Discovery Connected to %s:%s" % (x, self.DISCOVER_PORT))
+                    connect_code = self.discover_socket.connect_ex((x, self.DISCOVER_PORT))
 
-                    # Send FILE_TRANSFER_PORT to ip
-                    self.discover_socket.sendall(str(self.FILE_TRANSFER_PORT).encode())
+                    if connect_code == 0:
+                        print("Discovery Connected to %s:%s" % (x, self.DISCOVER_PORT))
 
-                    # create file socket
-                    file_socket = self.create_socket()
+                        # Send FILE_TRANSFER_PORT to ip
+                        self.discover_socket.sendall(str(self.FILE_TRANSFER_PORT).encode())
 
-                    try:
-                        while True:
-                            print('trying to connect to file transfer socket')
-                            # try to connect to other end file socket
-                            if not (file_socket.connect_ex((x, self.FILE_TRANSFER_PORT))):
-                                break
+                        # create file socket
+                        file_socket = self.create_socket()
 
-                        print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
-                        self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
+                        try:
+                            while True:
+                                print('trying to connect to file transfer socket')
+                                # try to connect to other end file socket
+                                if not (file_socket.connect_ex((x, self.FILE_TRANSFER_PORT))):
+                                    break
 
-                        # Send all data
-                        file_socket.sendall(str({
-                            'ips': self.localnet_ips,
-                            'files': self.hash_files
+                            print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
+                            self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
+
+                            # Send all data
+                            file_socket.sendall(str({
+                                'ips': self.localnet_ips,
+                                'files': self.hash_files
+                                }).encode())
+
+                            # Recieve data
+                            data = json.dumps(file_socket.recv(1024).decode())
+
+                            # Calculate differences
+                            ips_diff = set(self.localnet_ips) - set(data['ips'])
+                            file_diff = self.get_diff(self.hash_files, data['files'])
+
+                            # Send differences
+                            file_socket.sendall(str({
+                                'ips_diff' : ips_diff,
+                                'file_diff': file_diff
                             }).encode())
 
-                        # Recieve data
-                        data = json.dumps(file_socket.recv(1024).decode())
+                            data_diff = json.dumps(file_socket.recv(1024).decode())
 
-                        # Calculate differences
-                        ips_diff = set(self.localnet_ips) - set(data['ips'])
-                        file_diff = self.get_diff(self.hash_files, data['files'])
-
-                        # Send differences
-                        file_socket.sendall(str({
-                            'ips_diff' : ips_diff,
-                            'file_diff': file_diff
-                        }).encode())
-
-                        data_diff = json.dumps(file_socket.recv(1024).decode())
-
-                        ##########################################################
-                        #                Logic to receive file                   #
-                        ##########################################################
-                        for fileName in data_diff['file_diff']:
-                            file_data = file_socket.recv(1024)
-                            downloadFile = open((self.FILE_PATH, fileName), 'wb')
-                            while file_data:
-                                downloadFile.write(file_data)
+                            ##########################################################
+                            #                Logic to receive file                   #
+                            ##########################################################
+                            for fileName in data_diff['file_diff']:
                                 file_data = file_socket.recv(1024)
-                        
+                                downloadFile = open((self.FILE_PATH, fileName), 'wb')
+                                while file_data:
+                                    downloadFile.write(file_data)
+                                    file_data = file_socket.recv(1024)
 
-                    except socket.error as e:
-                        print("File Transfer Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
+                        except socket.error as e:
+                            print("File Transfer Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
+                    
+                    self.discover_socket.close()
 
                 except socket.error as err:
                     print("Discovery Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))
-            # Delay by 3 seconds 
+            # end of for loop of ips
+
             time.sleep(3)
+        # end of infinite while loop
 
     def listen_socket(self):
         # Initialize listener socket
@@ -168,6 +173,8 @@ class Network:
                 # Wait for connection to be accepted
                 conn, addr = self.listen_socket.accept()
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
+
+                # create new thread for client connection thread
                 threading._start_new_thread(self.client_connection_thread, (conn, addr))
 
         except socket.error as err:
@@ -185,59 +192,61 @@ class Network:
 
         file_socket.listen()
 
-        # accept connection from other end
-        file_conn, file_addr = file_socket.accept()
-        print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
+        while True:
+            # accept connection from other end
+            file_conn, file_addr = file_socket.accept()
+            print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
 
-        with file_conn:
-            # Recieve data from other end
-            data = json.dumps(file_conn.recv(1024).decode())
+            with file_conn:
+                # Recieve data from other end
+                data = json.dumps(file_conn.recv(1024).decode())
 
-            # Send my data to other end
-            file_conn.sendall(str({
-                'ips': self.localnet_ips,
-                'files': self.hash_files
-            }).encode())
+                # Send my data to other end
+                file_conn.sendall(str({
+                    'ips': self.localnet_ips,
+                    'files': self.hash_files
+                }).encode())
 
-            # Calculate differences
-            ips_diff = set(self.localnet_ips) - set(data['ips'])
-            file_diff = self.get_diff(self.hash_files, data['files'])
+                # Calculate differences
+                ips_diff = set(self.localnet_ips) - set(data['ips'])
+                file_diff = self.get_diff(self.hash_files, data['files'])
 
-            # Receive difference object data from other end
-            data_diff = json.dumps(file_conn.recv(1024).decode())
+                # Receive difference object data from other end
+                data_diff = json.dumps(file_conn.recv(1024).decode())
 
-            # Concat difference of IP List
-            for diff_ip in data_diff['ips_diff'].keys():
-                self.localnet_ips.append(diff_ip)
+                # Concat difference of IP List
+                for diff_ip in data_diff['ips_diff'].keys():
+                    self.localnet_ips.append(diff_ip)
 
-            # Send object of difference
-            file_conn.sendall(str({
-                'ips_diff': ips_diff,
-                'file_diff': file_diff
-            }).encode())
-                
-            for diff_file in data_diff['file_diff']:
-                try:
-                    ##########################################################
-                    #                Logic to send file                      #
-                    ##########################################################
-                    with open((self.FILE_PATH, diff_file), 'r') as f:
-                        fileRead = f.read(1024)
-                        while fileRead:
-                            file_conn.send(fileRead)
+                # Send object of difference
+                file_conn.sendall(str({
+                    'ips_diff': ips_diff,
+                    'file_diff': file_diff
+                }).encode())
+                    
+                for diff_file in data_diff['file_diff']:
+                    try:
+                        ##########################################################
+                        #                Logic to send file                      #
+                        ##########################################################
+                        with open((self.FILE_PATH, diff_file), 'r') as f:
                             fileRead = f.read(1024)
-                    # Add or overwrite value of data
-                    self.hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
-                except IOError:
-                    print('file: ', diff_file, ' not found')
+                            while fileRead:
+                                file_conn.send(fileRead)
+                                fileRead = f.read(1024)
+                        # Add or overwrite value of data
+                        self.hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
+                    except IOError:
+                        print('file: ', diff_file, ' not found')
+            break
+        
+
+                
 
 
-            
+            # TODO: need to make logic to disconnect from discover port while letting file port continue
 
 
-        # TODO: need to make logic to disconnect from discover port while letting file port continue
-
-        time.sleep(3)
         # # Infinite loop so thread does not end
         # while True:
         #     #Receiving from client
