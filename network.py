@@ -108,7 +108,7 @@ class Network:
                                 if not (file_socket.connect_ex((x, self.FILE_TRANSFER_PORT))):
                                     print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
                                     break
-                                
+
                             self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
 
                             # Send all data
@@ -118,7 +118,7 @@ class Network:
                                 }).encode())
 
                             # Recieve data
-                            data = json.dumps(file_socket.recv(1024).decode())
+                            data = file_socket.recv(1024).decode()
 
                             # Calculate differences
                             ips_diff = set(self.localnet_ips) - set(data['ips'])
@@ -130,7 +130,7 @@ class Network:
                                 'file_diff': file_diff
                             }).encode())
 
-                            data_diff = json.dumps(file_socket.recv(1024).decode())
+                            data_diff = file_socket.recv(1024).decode()
 
                             ##########################################################
                             #                Logic to receive file                   #
@@ -198,7 +198,7 @@ class Network:
 
             with file_conn:
                 # Recieve data from other end
-                data = json.dumps(file_conn.recv(1024).decode())
+                data = file_conn.recv(1024).decode()
 
                 # Send my data to other end
                 file_conn.sendall(str({
@@ -211,7 +211,7 @@ class Network:
                 file_diff = self.get_diff(self.hash_files, data['files'])
 
                 # Receive difference object data from other end
-                data_diff = json.dumps(file_conn.recv(1024).decode())
+                data_diff = file_conn.recv(1024).decode()
 
                 # Concat difference of IP List
                 for diff_ip in data_diff['ips_diff'].keys():
