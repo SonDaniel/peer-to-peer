@@ -102,6 +102,7 @@ class Network:
 
                     try:
                         while True:
+                            print('trying to connect to file transfer socket')
                             # try to connect to other end file socket
                             if not (file_socket.connect_ex((x, self.FILE_TRANSFER_PORT))):
                                 break
