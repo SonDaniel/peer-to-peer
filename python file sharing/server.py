@@ -1,4 +1,4 @@
-import socket, os, datetime
+import socket, os, datetime, json
 
 IP = '192.168.1.8'
 PORT = 3000
@@ -12,13 +12,18 @@ def get_diff(obj_1, obj_2):
     diff = {}
     for key in obj_1.keys():
         value = obj_1[key]
-        if key not in a:
+        if key not in obj_2.keys():
             diff[key] = value
         else:
-            if a[key] != value:
+            if obj_2[key] != value:
                 diff[key] = value
 
     return diff
+
+def datetime_handler(x):
+    if isinstance(x, datetime.datetime):
+        return x.isoformat()
+    raise TypeError("Unknown type")
 
 def get_files():
     print('get_files function running.')
@@ -50,65 +55,51 @@ try:
         print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
         with conn:
-            # get file port number from other end
-            file_port = int(conn.recv(1024).decode())
+            data = json.loads(conn.recv(1024).decode())
 
-        # Listener port will create file socket to persist
-        file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        file_socket.bind((IP, file_port))
+            print(data)
+            print(data['ips'])
+            # Send my data to other end
+            conn.sendall(json.dumps({
+                'ips': localnet_ips,
+                'files': json.dumps(hash_files, default=datetime_handler)
+            }).encode())
 
-        file_socket.listen(1)
-        listen_socket.sendall(b'True')
-        while True:
-            # accept connection from other end
-            file_conn, file_addr = file_socket.accept()
-            print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
+            # Calculate differences
+            ips_diff = set(localnet_ips) - set(data['ips'])
+            file_diff = get_diff(hash_files, json.loads(data['files']))
 
-            with file_conn:
-                # Send my data to other end
-                file_conn.sendall(str({
-                    'ips': localnet_ips,
-                    'files': hash_files
-                }).encode())
+            # Receive difference object data from other end
+            data_diff = json.loads(conn.recv(1024).decode())
 
-                # Recieve data from other end
-                data = file_conn.recv(1024).decode()
+            # Concat difference of IP List
+            for diff_ip in data_diff['ips_diff'].keys():
+                localnet_ips.append(diff_ip)
 
-                # Calculate differences
-                ips_diff = set(localnet_ips) - set(data['ips'])
-                file_diff = get_diff(hash_files, data['files'])
+            # Send object of difference
+            file_conn.sendall(json.dumps({
+                'ips_diff': ips_diff,
+                'file_diff': json.dumps(file_diff, default=datetime_handler)
+            }).encode())
 
-                # Receive difference object data from other end
-                data_diff = file_conn.recv(1024).decode()
-
-                # Concat difference of IP List
-                for diff_ip in data_diff['ips_diff'].keys():
-                    localnet_ips.append(diff_ip)
-
-                # Send object of difference
-                file_conn.sendall(str({
-                    'ips_diff': ips_diff,
-                    'file_diff': file_diff
-                }).encode())
-
-                # create infinite loop to send files, then break when ip_diff and file_diff done
-                while True:
-                    
-                    for diff_file in data_diff['file_diff']:
-                        try:
-                            ##########################################################
-                            #                Logic to send file                      #
-                            ##########################################################
-                            with open((FILE_PATH, diff_file), 'r') as f:
+            # create infinite loop to send files, then break when ip_diff and file_diff done
+            while True:
+                
+                for diff_file in json.loads(data_diff['file_diff']).keys():
+                    try:
+                        ##########################################################
+                        #                Logic to send file                      #
+                        ##########################################################
+                        with open((FILE_PATH, diff_file), 'r') as f:
+                            fileRead = f.read(1024)
+                            while fileRead:
+                                conn.send(fileRead)
                                 fileRead = f.read(1024)
-                                while fileRead:
-                                    file_conn.send(fileRead)
-                                    fileRead = f.read(1024)
-                            # Add or overwrite value of data
-                            hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
-                        except IOError:
-                            print('file: ', diff_file, ' not found')
-                    break
+                        # Add or overwrite value of data
+                        hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
+                    except IOError:
+                        print('file: ', diff_file, ' not found')
+                break
 
 
                 
@@ -116,7 +107,7 @@ try:
 
             # TODO: need to make logic to disconnect from discover port while letting file port continue
     
-        time.sleep(3)
+        # time.sleep(3)
 except socket.error as err:
     # If you cannot bind, exit out of program
     print('Bind failed. Error Code : ' + str(err.errno))
