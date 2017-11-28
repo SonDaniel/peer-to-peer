@@ -38,7 +38,7 @@ class Network:
         print("Base IP: ", self.base_ip)
 
         # Discovering network through ping
-        # self.ping_network()
+        self.ping_network()
 
     def get_files(self):
         while True:

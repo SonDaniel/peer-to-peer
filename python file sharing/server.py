@@ -1,8 +1,8 @@
 import socket, os, datetime
 
 IP = '192.168.1.8'
-PORT = 10000
-FILE_TRANSFER_PORT = 10001
+PORT = 3000
+FILE_TRANSFER_PORT = 3001
 FILE_PATH = '../sync/'
 listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 hash_files = {}
@@ -58,28 +58,28 @@ try:
         file_socket.bind((IP, file_port))
 
         file_socket.listen(1)
-
+        listen_socket.sendall(b'True')
         while True:
             # accept connection from other end
             file_conn, file_addr = file_socket.accept()
             print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
 
             with file_conn:
-                # Recieve data from other end
-                data = json.dumps(file_conn.recv(1024).decode())
-
                 # Send my data to other end
                 file_conn.sendall(str({
                     'ips': localnet_ips,
                     'files': hash_files
                 }).encode())
 
+                # Recieve data from other end
+                data = file_conn.recv(1024).decode()
+
                 # Calculate differences
                 ips_diff = set(localnet_ips) - set(data['ips'])
                 file_diff = get_diff(hash_files, data['files'])
 
                 # Receive difference object data from other end
-                data_diff = json.dumps(file_conn.recv(1024).decode())
+                data_diff = file_conn.recv(1024).decode()
 
                 # Concat difference of IP List
                 for diff_ip in data_diff['ips_diff'].keys():
