@@ -29,9 +29,10 @@ if __name__ == '__main__':
     print('thread 1 start: listen sockets')
     p1.start()
 
+    p2 = threading.Thread(target=net.connect_socket)
+    print('thread 2 start: connect sockets')
+    p2.start()
+    
     p3 = threading.Thread(target=net.get_files)
     print('thread 3 start: file listener')
     p3.start()
-
-    while True:
-        net.connect_socket()

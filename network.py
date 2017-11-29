@@ -79,85 +79,87 @@ class Network:
             return None
 
     def connect_socket(self):
-        for ip in self.localnet_ips:
-            try:
-                my_socket = self.create_socket()
-                # Try to connect to other ends discovery port 
-                my_socket.connect((ip, self.DISCOVER_PORT))
+        while True:
+            print(self.localnet_ips)
+            for ip in self.localnet_ips:
+                try:
+                    my_socket = self.create_socket()
+                    my_socket.settimeout(3)
+                    # Try to connect to other ends discovery port 
+                    my_socket.connect((ip, self.DISCOVER_PORT))
+                    # Send all data
+                    my_socket.sendall(pickle.dumps({
+                        'ips': self.localnet_ips,
+                        'files': pickle.dumps(self.hash_files)
+                        }))
+                        
+                    # Recieve data
+                    data = pickle.loads(my_socket.recv(1024))
 
-                # Send all data
-                my_socket.sendall(pickle.dumps({
-                    'ips': self.localnet_ips,
-                    'files': pickle.dumps(self.hash_files)
+
+
+                    # Calculate differences
+                    ips_diff = set(self.localnet_ips) - set(data['ips'])
+                    file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
+
+                    print('ips_diff is: {0}'.format(ips_diff))
+                    print('file_diff is: {0}'.format(file_diff))
+
+                    # Send differences
+                    my_socket.sendall(pickle.dumps({
+                        'ips_diff' : ips_diff,
+                        'file_diff': pickle.dumps(file_diff)
                     }))
-                    
-                # Recieve data
-                data = pickle.loads(my_socket.recv(1024))
 
+                    data_diff = pickle.loads(my_socket.recv(1024))
 
+                    # Concat difference of IP List
+                    for diff_ip in data_diff['ips_diff']:
+                        self.localnet_ips.append(diff_ip)
 
-                # Calculate differences
-                ips_diff = set(self.localnet_ips) - set(data['ips'])
-                file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
+                    print('data_diff is: {0}'.format(data_diff))
 
-                print('ips_diff is: {0}'.format(ips_diff))
-                print('file_diff is: {0}'.format(file_diff))
-
-                # Send differences
-                my_socket.sendall(pickle.dumps({
-                    'ips_diff' : ips_diff,
-                    'file_diff': pickle.dumps(file_diff)
-                }))
-
-                data_diff = pickle.loads(my_socket.recv(1024))
-
-                # Concat difference of IP List
-                for diff_ip in data_diff['ips_diff']:
-                    self.localnet_ips.append(diff_ip)
-
-                print('data_diff is: {0}'.format(data_diff))
-
-                ##########################################################
-                #                Logic to receive file                   #
-                ##########################################################
-                for fileName in pickle.loads(data_diff['file_diff']):
-                    file_socket = self.create_socket()
-                    file_socket.connect((ip, self.FILE_TRANSFER_PORT))
-                    fileWriter = open((self.FILE_PATH + fileName), 'wb+')
-                    file_data = file_socket.recv(1024)
-                    while file_data:
-                        fileWriter.write(file_data)
+                    ##########################################################
+                    #                Logic to receive file                   #
+                    ##########################################################
+                    for fileName in pickle.loads(data_diff['file_diff']):
+                        file_socket = self.create_socket()
+                        file_socket.connect((ip, self.FILE_TRANSFER_PORT))
+                        fileWriter = open((self.FILE_PATH + fileName), 'wb+')
                         file_data = file_socket.recv(1024)
-                    fileWriter.close()
-                    file_socket.close()
+                        while file_data:
+                            fileWriter.write(file_data)
+                            file_data = file_socket.recv(1024)
+                        fileWriter.close()
+                        file_socket.close()
 
 
-                print('All files saved.')
-                ##########################################################
-                #                Logic to send file                      #
-                ##########################################################
-                for diff_file in file_diff:
-                    file_socket = self.create_socket()
-                    file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
-                    file_socket.listen(1)
-                    file_conn, file_addr = file_socket.accept()
-                    fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
-                    fileRead = fileWriter.read(1024)
-                    while fileRead:
-                        file_conn.send(fileRead)
+                    print('All files saved.')
+                    ##########################################################
+                    #                Logic to send file                      #
+                    ##########################################################
+                    for diff_file in file_diff:
+                        file_socket = self.create_socket()
+                        file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
+                        file_socket.listen(1)
+                        file_conn, file_addr = file_socket.accept()
+                        fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
                         fileRead = fileWriter.read(1024)
-                    fileWriter.close()
-                    file_conn.close()
-                    # Add or overwrite value of data
-                    self.hash_files[diff_file] = file_diff[diff_file]
+                        while fileRead:
+                            file_conn.send(fileRead)
+                            fileRead = fileWriter.read(1024)
+                        fileWriter.close()
+                        file_conn.close()
+                        # Add or overwrite value of data
+                        self.hash_files[diff_file] = file_diff[diff_file]
 
-                print('Files sent.')
+                    print('Files sent.')
 
-                my_socket.close()
-            except socket.error as err:
-                print("Discovery Connection to %s:%s failed: %s" % (ip, self.DISCOVER_PORT, err))
+                    my_socket.close()
+                except socket.error as err:
+                    print("Discovery Connection to %s:%s failed: %s" % (ip, self.DISCOVER_PORT, err))
 
-        time.sleep(1)
+                time.sleep(3)
 
     def listen_socket(self):
         try:
