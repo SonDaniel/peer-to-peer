@@ -1,8 +1,8 @@
-import socket, os, datetime, json
+import socket, os, datetime, pickle
 
-IP = '192.168.1.8'
-PORT = 3000
-FILE_TRANSFER_PORT = 3001
+IP = '10.0.1.2'
+PORT = 5000
+FILE_TRANSFER_PORT = 5000
 FILE_PATH = '../sync/'
 listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 hash_files = {}
@@ -37,6 +37,8 @@ def get_files():
         # save file stats
         hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
 
+    print(hash_files)
+
 get_files()
 
 try:
@@ -55,50 +57,57 @@ try:
         print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
         with conn:
-            data = json.loads(conn.recv(1024).decode())
+            data = pickle.loads(conn.recv(1024))
 
-            print(data)
-            print(data['ips'])
+
             # Send my data to other end
-            conn.sendall(json.dumps({
+            conn.sendall(pickle.dumps({
                 'ips': localnet_ips,
-                'files': json.dumps(hash_files, default=datetime_handler)
-            }).encode())
+                'files': pickle.dumps(hash_files)
+            }))
 
             # Calculate differences
             ips_diff = set(localnet_ips) - set(data['ips'])
-            file_diff = get_diff(hash_files, json.loads(data['files']))
+            file_diff = get_diff(hash_files, pickle.loads(data['files']))
+
+            print('ips_diff is: {0}'.format(ips_diff))
+            print('file_diff is: {0}'.format(file_diff))
 
             # Receive difference object data from other end
-            data_diff = json.loads(conn.recv(1024).decode())
+            data_diff = pickle.loads(conn.recv(1024))
+
+            print('data_diff is: {0}'.format(data_diff))
+            print(pickle.loads(data_diff['file_diff']))
 
             # Concat difference of IP List
-            for diff_ip in data_diff['ips_diff'].keys():
+            for diff_ip in data_diff['ips_diff']:
                 localnet_ips.append(diff_ip)
 
+            print('localnet ip is: {0}'.format(localnet_ips))
             # Send object of difference
-            file_conn.sendall(json.dumps({
+            conn.sendall(pickle.dumps({
                 'ips_diff': ips_diff,
-                'file_diff': json.dumps(file_diff, default=datetime_handler)
-            }).encode())
+                'file_diff': pickle.dumps(file_diff)
+            }))
+
+            print('sent')
 
             # create infinite loop to send files, then break when ip_diff and file_diff done
             while True:
-                
-                for diff_file in json.loads(data_diff['file_diff']).keys():
-                    try:
-                        ##########################################################
-                        #                Logic to send file                      #
-                        ##########################################################
-                        with open((FILE_PATH, diff_file), 'r') as f:
-                            fileRead = f.read(1024)
-                            while fileRead:
-                                conn.send(fileRead)
-                                fileRead = f.read(1024)
-                        # Add or overwrite value of data
-                        hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
-                    except IOError:
-                        print('file: ', diff_file, ' not found')
+                for diff_file in file_diff:
+                    print(diff_file)
+                    ##########################################################
+                    #                Logic to send file                      #
+                    ##########################################################
+                    fileWriter = open((FILE_PATH + diff_file), 'rb+')
+                    fileRead = fileWriter.read(1024)
+                    print(fileRead)
+                    while fileRead:
+                        conn.send(fileRead)
+                        fileRead = fileWriter.read(1024)
+                    fileWriter.close()
+                    # Add or overwrite value of data
+                    hash_files[diff_file] = file_diff[diff_file]
                 break
 
 
