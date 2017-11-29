@@ -183,12 +183,12 @@ class Network:
                     # Send my data to other end
                     conn.sendall(pickle.dumps({
                         'ips': self.localnet_ips,
-                        'files': pickle.dumps(hash_files)
+                        'files': pickle.dumps(self.hash_files)
                     }))
 
                     # Calculate differences
                     ips_diff = set(self.localnet_ips) - set(data['ips'])
-                    file_diff = get_diff(hash_files, pickle.loads(data['files']))
+                    file_diff = get_diff(self.hash_files, pickle.loads(data['files']))
 
                     print('ips_diff is: {0}'.format(ips_diff))
                     print('file_diff is: {0}'.format(file_diff))
@@ -203,7 +203,7 @@ class Network:
                     for diff_ip in data_diff['ips_diff']:
                         self.localnet_ips.append(diff_ip)
 
-                    print('localnet ip is: {0}'.format(localnet_ips))
+                    print('localnet ip is: {0}'.format(self.localnet_ips))
 
                     # Send object of difference
                     conn.sendall(pickle.dumps({
