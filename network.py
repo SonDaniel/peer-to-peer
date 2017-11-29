@@ -1,11 +1,11 @@
 # TODO: Make a description of class and all
 import socket, socketserver, subprocess, ipaddress, os, re
-import multiprocessing, sys, _thread, json, datetime, time
+import multiprocessing, sys, datetime, time, pickle
 import threading
 
 class Network:
-    DISCOVER_PORT = 10000
-    FILE_TRANSFER_PORT = 10001
+    DISCOVER_PORT = 5000
+    FILE_TRANSFER_PORT = 6000
     TIMEOUT = 5  # in seconds
     CONCURRENCY = 100  # how many pings in parallel
     FILE_PATH = './sync/'
@@ -61,19 +61,17 @@ class Network:
         diff = {}
         for key in obj_1.keys():
             value = obj_1[key]
-            if key not in a:
+            if key not in obj_2.keys():
                 diff[key] = value
             else:
-                if a[key] != value:
+                if obj_2[key] != value:
                     diff[key] = value
 
         return diff
 
-
     def create_socket(self):
         try:
             create_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             return create_socket
         except socket.error as err:
@@ -81,173 +79,173 @@ class Network:
             return None
 
     def connect_socket(self):
-        # Initialize discovery socket
-        self.discover_socket = self.create_socket()
-
-        # infinite loop to listen for local IPs
         while True:
-            print('connect_socket running')
-            # loop through list to see if connection works
-            for x in self.localnet_ips:
+            for ip in self.localnet_ips:
                 try:
+                    my_socket = self.create_socket()
                     # Try to connect to other ends discovery port 
-                    self.discover_socket.connect((x, self.DISCOVER_PORT))
-                    print("Discovery Connected to %s:%s" % (x, self.DISCOVER_PORT))
+                    my_socket.connect((ip, self.DISCOVER_PORT))
 
-                    # Send FILE_TRANSFER_PORT to ip
-                    self.discover_socket.sendall(str(self.FILE_TRANSFER_PORT).encode())
-
-                    # create file socket
-                    file_socket = self.create_socket()
-
-                    try:
-                        # try to connect to other end file socket
-                        file_socket.connect((x, self.FILE_TRANSFER_PORT))
-
-                        print("connected to %s:%s File Transfer Socket" % (x, self.FILE_TRANSFER_PORT))
-                        self.FILE_TRANSFER_PORT = self.FILE_TRANSFER_PORT + 1
-
-                        # Send all data
-                        file_socket.sendall(str({
-                            'ips': self.localnet_ips,
-                            'files': self.hash_files
-                            }).encode())
-
-                        # Recieve data
-                        data = json.dumps(file_socket.recv(1024).decode())
-
-                        # Calculate differences
-                        ips_diff = set(self.localnet_ips) - set(data['ips'])
-                        file_diff = self.get_diff(self.hash_files, data['files'])
-
-                        # Send differences
-                        file_socket.sendall(str({
-                            'ips_diff' : ips_diff,
-                            'file_diff': file_diff
-                        }).encode())
-
-                        data_diff = json.dumps(file_socket.recv(1024).decode())
-
-                        ##########################################################
-                        #                Logic to receive file                   #
-                        ##########################################################
-                        for fileName in data_diff['file_diff']:
-                            file_data = file_socket.recv(1024)
-                            downloadFile = open((self.FILE_PATH, fileName), 'wb')
-                            while file_data:
-                                downloadFile.write(file_data)
-                                file_data = file_socket.recv(1024)
+                    # Send all data
+                    my_socket.sendall(pickle.dumps({
+                        'ips': localnet_ips,
+                        'files': pickle.dumps(hash_files)
+                        }))
                         
+                    # Recieve data
+                    data = pickle.loads(my_socket.recv(1024))
 
-                    except socket.error as e:
-                        print("File Transfer Connection to %s:%s failed: %s" % (x, self.FILE_TRANSFER_PORT, e))
 
+
+                    # Calculate differences
+                    ips_diff = set(localnet_ips) - set(data['ips'])
+                    file_diff = get_diff(hash_files, pickle.loads(data['files']))
+
+                    print('ips_diff is: {0}'.format(ips_diff))
+                    print('file_diff is: {0}'.format(file_diff))
+
+                    # Send differences
+                    my_socket.sendall(pickle.dumps({
+                        'ips_diff' : ips_diff,
+                        'file_diff': pickle.dumps(file_diff)
+                    }))
+
+                    data_diff = pickle.loads(my_socket.recv(1024))
+
+                    print('data_diff is: {0}'.format(data_diff))
+
+                    ##########################################################
+                    #                Logic to receive file                   #
+                    ##########################################################
+                    for fileName in pickle.loads(data_diff['file_diff']):
+                        file_socket = self.create_socket()
+                        file_socket.connect((ip, self.FILE_TRANSFER_PORT))
+                        fileWriter = open((self.FILE_PATH + fileName), 'wb+')
+                        file_data = file_socket.recv(1024)
+                        while file_data:
+                            fileWriter.write(file_data)
+                            file_data = file_socket.recv(1024)
+                        fileWriter.close()
+                        file_socket.close()
+
+
+                    print('All files saved.')
+                    ##########################################################
+                    #                Logic to send file                      #
+                    ##########################################################
+                    for diff_file in file_diff:
+                        file_socket = self.create_socket()
+                        file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
+                        file_socket.listen(1)
+                        file_conn, file_addr = file_socket.accept()
+                        fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
+                        fileRead = fileWriter.read(1024)
+                        while fileRead:
+                            file_conn.send(fileRead)
+                            fileRead = fileWriter.read(1024)
+                        fileWriter.close()
+                        file_conn.close()
+                        # Add or overwrite value of data
+                        hash_files[diff_file] = file_diff[diff_file]
+
+                    print('Files sent.')
+
+                    my_socket.close()
                 except socket.error as err:
-                    print("Discovery Connection to %s:%s failed: %s" % (x, self.DISCOVER_PORT, err))\
-            # Delay by 3 seconds 
-            time.sleep(3)
+                    print("Discovery Connection to %s:%s failed: %s" % (ip, self.DISCOVER_PORT, err))
+
+            time.sleep(2)
 
     def listen_socket(self):
-        # Initialize listener socket
-        self.listen_socket = self.create_socket()
-
         try:
             # Bind socket to listen to own IP
-            self.listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
+            listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
 
             # Start listening for connections
             # Integer means to allow up to x un-accept()ed incoming TCP connections
-            self.listen_socket.listen()
+            listen_socket.listen(1)
 
             # While loop keeps waiting for connection
             while True:
                 print('listen_socket running')
                 # Wait for connection to be accepted
-                conn, addr = self.listen_socket.accept()
+                conn, addr = listen_socket.accept()
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
-                threading._start_new_thread(self.client_connection_thread, (conn, addr))
 
-        except socket.error as err:
-            # If you cannot bind, exit out of program
-            print('Bind failed. Error Code : ' + str(err.errno))
+                with conn:
+                    data = pickle.loads(conn.recv(1024))
 
-    def client_connection_thread(conn, addr):
-        with conn:
-            # get file port number from other end
-            file_port = int(conn.recv(1024).decode())
 
-        # Listener port will create file socket to persist
-        file_socket = self.create_socket()
-        file_socket.bind((self.my_ip, file_port))
+                    # Send my data to other end
+                    conn.sendall(pickle.dumps({
+                        'ips': localnet_ips,
+                        'files': pickle.dumps(hash_files)
+                    }))
 
-        file_socket.listen()
+                    # Calculate differences
+                    ips_diff = set(localnet_ips) - set(data['ips'])
+                    file_diff = get_diff(hash_files, pickle.loads(data['files']))
 
-        # accept connection from other end
-        file_conn, file_addr = file_socket.accept()
-        print('Connected File Protocol with ' + addr[0] + ':' + str(addr[1]))
+                    print('ips_diff is: {0}'.format(ips_diff))
+                    print('file_diff is: {0}'.format(file_diff))
 
-        with file_conn:
-            # Recieve data from other end
-            data = json.dumps(file_conn.recv(1024).decode())
+                    # Receive difference object data from other end
+                    data_diff = pickle.loads(conn.recv(1024))
 
-            # Send my data to other end
-            file_conn.sendall(str({
-                'ips': self.localnet_ips,
-                'files': self.hash_files
-            }).encode())
+                    print('data_diff is: {0}'.format(data_diff))
+                    print(pickle.loads(data_diff['file_diff']))
 
-            # Calculate differences
-            ips_diff = set(self.localnet_ips) - set(data['ips'])
-            file_diff = self.get_diff(self.hash_files, data['files'])
+                    # Concat difference of IP List
+                    for diff_ip in data_diff['ips_diff']:
+                        localnet_ips.append(diff_ip)
 
-            # Receive difference object data from other end
-            data_diff = json.dumps(file_conn.recv(1024).decode())
+                    print('localnet ip is: {0}'.format(localnet_ips))
 
-            # Concat difference of IP List
-            for diff_ip in data_diff['ips_diff'].keys():
-                self.localnet_ips.append(diff_ip)
+                    # Send object of difference
+                    conn.sendall(pickle.dumps({
+                        'ips_diff': ips_diff,
+                        'file_diff': pickle.dumps(file_diff)
+                    }))
 
-            # Send object of difference
-            file_conn.sendall(str({
-                'ips_diff': ips_diff,
-                'file_diff': file_diff
-            }).encode())
-                
-            for diff_file in data_diff['file_diff']:
-                try:
                     ##########################################################
                     #                Logic to send file                      #
                     ##########################################################
-                    with open((self.FILE_PATH, diff_file), 'r') as f:
-                        fileRead = f.read(1024)
+                    for diff_file in file_diff:
+                        file_socket = self.create_socket()
+                        file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
+                        file_socket.listen(1)
+                        file_conn, file_addr = file_socket.accept()
+                        fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
+                        fileRead = fileWriter.read(1024)
                         while fileRead:
                             file_conn.send(fileRead)
-                            fileRead = f.read(1024)
-                    # Add or overwrite value of data
-                    self.hash_files[diff_file] = data_diff['file_diff'].value(diff_file)
-                except IOError:
-                    print('file: ', diff_file, ' not found')
+                            fileRead = fileWriter.read(1024)
+                        fileWriter.close()
+                        file_conn.close()
+                        # Add or overwrite value of data
+                        hash_files[diff_file] = file_diff[diff_file]
 
+                    print('All files sent. Receiving files....')
+                    time.sleep(2)
+                    ##########################################################
+                    #                Logic to receive file                   #
+                    ##########################################################
+                    for fileName in pickle.loads(data_diff['file_diff']):
+                        file_socket = self.create_socket()
+                        file_socket.connect((addr[0], self.FILE_TRANSFER_PORT))
+                        fileWriter = open((self.FILE_PATH + fileName), 'wb+')
+                        file_data = file_socket.recv(1024)
+                        while file_data:
+                            fileWriter.write(file_data)
+                            file_data = file_socket.recv(1024)
+                        fileWriter.close()
+                        file_socket.close()
 
-            
+                    print('Files received.')
 
-
-        # TODO: need to make logic to disconnect from discover port while letting file port continue
-
-        time.sleep(3)
-        # # Infinite loop so thread does not end
-        # while True:
-        #     #Receiving from client
-        #     data = conn.recv(1024)
-
-        #     # reply = 'OK...' + data
-        #     if data == -1:
-        #         break
-        
-        #     # conn.sendall(reply)
-        
-        # #came out of loop
-        # conn.close()
+        except socket.error as err:
+            # If you cannot bind, exit out of program
+            print('Bind failed. Error Code : {0}'.format(err))
 
     def ping_network(self):
         # create range of ips from base ip - 1:255
