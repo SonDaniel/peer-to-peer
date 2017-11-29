@@ -4,7 +4,7 @@
 # Lab #1: Peer to Peer Networks
 
 # from threading import Thread
-from threading import Thread
+import threading
 from network import Network
 import os, errno, time
 
@@ -24,13 +24,18 @@ except OSError as e:
 net.scan_network()
 
 if __name__ == '__main__':
-    p1 = Thread(target=net.listen_socket)
-    p2 = Thread(target=net.connect_socket)
-    p3 = Thread(target=net.get_files)
+    p1 = threading.Thread(target=net.listen_socket)
 
     print('thread 1 start: listen sockets')
     p1.start()
-    print('thread 2 start: connection sockets')
-    p2.start()
+
+    # p2 = threading.Thread(target=net.connect_socket)
+    # print('thread 2 start: connection sockets')
+    # p2.start()
+
+    p3 = threading.Thread(target=net.get_files)
     print('thread 3 start: file listener')
     p3.start()
+
+    while True:
+        net.connect_socket()
