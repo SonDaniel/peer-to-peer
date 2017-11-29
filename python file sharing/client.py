@@ -89,6 +89,25 @@ try:
         fileWriter.close()
         file_socket.close()
 
+    ##########################################################
+    #                Logic to send file                      #
+    ##########################################################
+    for diff_file in file_diff:
+        file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        file_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        file_socket.bind((IP, FILE_TRANSFER_PORT))
+        file_socket.listen(1)
+        file_conn, file_addr = file_socket.accept()
+        fileWriter = open((FILE_PATH + diff_file), 'rb+')
+        fileRead = fileWriter.read(1024)
+        while fileRead:
+            file_conn.send(fileRead)
+            fileRead = fileWriter.read(1024)
+        fileWriter.close()
+        file_conn.close()
+        # Add or overwrite value of data
+        hash_files[diff_file] = file_diff[diff_file]
+
 
 except socket.error as err:
     print("Discovery Connection to %s:%s failed: %s" % (IP, PORT, err))
