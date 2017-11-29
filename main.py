@@ -6,7 +6,7 @@
 # from threading import Thread
 import threading
 from network import Network
-import os, errno
+import os, errno, time
 
 directory = os.path.dirname('./sync/')
 net = Network()
@@ -25,6 +25,7 @@ net.scan_network()
 
 if __name__ == '__main__':
     p1 = threading.Thread(target=net.listen_socket)
+
     print('thread 1 start: listen sockets')
     p1.start()
 
