@@ -1,8 +1,8 @@
-import socket, os, datetime, json
+import socket, os, datetime, json, pickle
 
-IP = '192.168.1.8'
-MY_IP = '192.168.1.11'
-PORT = 3000
+IP = '10.0.1.2'
+MY_IP = '10.0.1.3'
+PORT = 5000
 FILE_TRANSFER_PORT = 3001
 FILE_PATH = '../sync/'
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,6 +38,8 @@ def get_files():
         # save file stats
         hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
 
+    print(hash_files)
+
 get_files()
 
 try:
@@ -45,37 +47,44 @@ try:
     my_socket.connect((IP , PORT))
 
     # Send all data
-    my_socket.sendall(json.dumps({
+    my_socket.sendall(pickle.dumps({
         'ips': localnet_ips,
-        'files': json.dumps(hash_files, default=datetime_handler)
-        }).encode())
+        'files': pickle.dumps(hash_files)
+        }))
         
     # Recieve data
-    data = json.loads(my_socket.recv(1024).decode())
+    data = pickle.loads(my_socket.recv(1024))
 
 
 
     # Calculate differences
     ips_diff = set(localnet_ips) - set(data['ips'])
-    file_diff = get_diff(hash_files, json.loads(data['files']))
+    file_diff = get_diff(hash_files, pickle.loads(data['files']))
+
+    print('ips_diff is: {0}'.format(ips_diff))
+    print('file_diff is: {0}'.format(file_diff))
 
     # Send differences
-    my_socket.sendall(json.dumps({
+    my_socket.sendall(pickle.dumps({
         'ips_diff' : ips_diff,
-        'file_diff': json.dumps(file_diff, default=datetime_handler)
-    }).encode())
+        'file_diff': pickle.dumps(file_diff)
+    }))
 
-    data_diff = json.loads(my_socket.recv(1024).decode())
+    data_diff = pickle.loads(my_socket.recv(1024))
+
+    print('data_diff is: {0}'.format(data_diff))
 
     ##########################################################
     #                Logic to receive file                   #
     ##########################################################
-    for fileName in json.loads(data_diff['file_diff']).keys():
+    for fileName in pickle.loads(data_diff['file_diff']):
+        print(fileName)
+        fileWriter = open((FILE_PATH + fileName), 'wb+')
         file_data = my_socket.recv(1024)
-        downloadFile = open((FILE_PATH, fileName), 'wb')
+        print(file_data)
         while file_data:
-            downloadFile.write(file_data)
+            fileWriter.write(file_data)
             file_data = my_socket.recv(1024)
-
+        fileWriter.close()
 except socket.error as err:
     print("Discovery Connection to %s:%s failed: %s" % (IP, PORT, err))
