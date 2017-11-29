@@ -1,8 +1,8 @@
 import socket, os, datetime, pickle
 
-IP = '10.0.1.2'
+IP = '192.168.1.8'
 PORT = 5000
-FILE_TRANSFER_PORT = 5000
+FILE_TRANSFER_PORT = 8000
 FILE_PATH = '../sync/'
 listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 hash_files = {}
@@ -84,17 +84,25 @@ try:
                 localnet_ips.append(diff_ip)
 
             print('localnet ip is: {0}'.format(localnet_ips))
+
             # Send object of difference
             conn.sendall(pickle.dumps({
                 'ips_diff': ips_diff,
                 'file_diff': pickle.dumps(file_diff)
             }))
+            conn.close()
 
             print('sent')
+
 
             # create infinite loop to send files, then break when ip_diff and file_diff done
             while True:
                 for diff_file in file_diff:
+                    file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    file_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    file_socket.bind((IP, FILE_TRANSFER_PORT))
+                    file_socket.listen(1)
+                    file_conn, file_addr = file_socket.accept()
                     print(diff_file)
                     ##########################################################
                     #                Logic to send file                      #
@@ -103,9 +111,10 @@ try:
                     fileRead = fileWriter.read(1024)
                     print(fileRead)
                     while fileRead:
-                        conn.send(fileRead)
+                        file_conn.send(fileRead)
                         fileRead = fileWriter.read(1024)
                     fileWriter.close()
+                    file_conn.close()
                     # Add or overwrite value of data
                     hash_files[diff_file] = file_diff[diff_file]
                 break
@@ -119,4 +128,4 @@ try:
         # time.sleep(3)
 except socket.error as err:
     # If you cannot bind, exit out of program
-    print('Bind failed. Error Code : ' + str(err.errno))
+    print('Bind failed. Error Code : {0}'.format(err))
