@@ -87,8 +87,8 @@ class Network:
 
                 # Send all data
                 my_socket.sendall(pickle.dumps({
-                    'ips': localnet_ips,
-                    'files': pickle.dumps(hash_files)
+                    'ips': self.localnet_ips,
+                    'files': pickle.dumps(self.hash_files)
                     }))
                     
                 # Recieve data
@@ -97,8 +97,8 @@ class Network:
 
 
                 # Calculate differences
-                ips_diff = set(localnet_ips) - set(data['ips'])
-                file_diff = get_diff(hash_files, pickle.loads(data['files']))
+                ips_diff = set(self.localnet_ips) - set(data['ips'])
+                file_diff = get_diff(self.hash_files, pickle.loads(data['files']))
 
                 print('ips_diff is: {0}'.format(ips_diff))
                 print('file_diff is: {0}'.format(file_diff))
@@ -110,6 +110,10 @@ class Network:
                 }))
 
                 data_diff = pickle.loads(my_socket.recv(1024))
+
+                # Concat difference of IP List
+                for diff_ip in data_diff['ips_diff']:
+                    self.localnet_ips.append(diff_ip)
 
                 print('data_diff is: {0}'.format(data_diff))
 
@@ -145,7 +149,7 @@ class Network:
                     fileWriter.close()
                     file_conn.close()
                     # Add or overwrite value of data
-                    hash_files[diff_file] = file_diff[diff_file]
+                    self.hash_files[diff_file] = file_diff[diff_file]
 
                 print('Files sent.')
 
@@ -178,12 +182,12 @@ class Network:
 
                     # Send my data to other end
                     conn.sendall(pickle.dumps({
-                        'ips': localnet_ips,
+                        'ips': self.localnet_ips,
                         'files': pickle.dumps(hash_files)
                     }))
 
                     # Calculate differences
-                    ips_diff = set(localnet_ips) - set(data['ips'])
+                    ips_diff = set(self.localnet_ips) - set(data['ips'])
                     file_diff = get_diff(hash_files, pickle.loads(data['files']))
 
                     print('ips_diff is: {0}'.format(ips_diff))
@@ -197,7 +201,7 @@ class Network:
 
                     # Concat difference of IP List
                     for diff_ip in data_diff['ips_diff']:
-                        localnet_ips.append(diff_ip)
+                        self.localnet_ips.append(diff_ip)
 
                     print('localnet ip is: {0}'.format(localnet_ips))
 
@@ -223,7 +227,7 @@ class Network:
                         fileWriter.close()
                         file_conn.close()
                         # Add or overwrite value of data
-                        hash_files[diff_file] = file_diff[diff_file]
+                        self.hash_files[diff_file] = file_diff[diff_file]
 
                     print('All files sent. Receiving files....')
                     time.sleep(2)
