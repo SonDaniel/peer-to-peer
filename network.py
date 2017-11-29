@@ -57,7 +57,7 @@ class Network:
             # Sleep process for 5 seconds
             time.sleep(5)
 
-    def get_diff(obj_1, obj_2):
+    def get_diff(self, obj_1, obj_2):
         diff = {}
         for key in obj_1.keys():
             value = obj_1[key]
