@@ -98,7 +98,7 @@ class Network:
 
                 # Calculate differences
                 ips_diff = set(self.localnet_ips) - set(data['ips'])
-                file_diff = get_diff(self.hash_files, pickle.loads(data['files']))
+                file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
 
                 print('ips_diff is: {0}'.format(ips_diff))
                 print('file_diff is: {0}'.format(file_diff))
@@ -188,7 +188,7 @@ class Network:
 
                     # Calculate differences
                     ips_diff = set(self.localnet_ips) - set(data['ips'])
-                    file_diff = get_diff(self.hash_files, pickle.loads(data['files']))
+                    file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
 
                     print('ips_diff is: {0}'.format(ips_diff))
                     print('file_diff is: {0}'.format(file_diff))
