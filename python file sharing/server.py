@@ -1,6 +1,7 @@
-import socket, os, datetime, pickle
+import socket, os, datetime, pickle, time
 
-IP = '192.168.1.8'
+MY_IP = '192.168.1.8'
+IP = '192.168.1.11'
 PORT = 5000
 FILE_TRANSFER_PORT = 8000
 FILE_PATH = '../sync/'
@@ -43,7 +44,7 @@ get_files()
 
 try:
     # Bind socket to listen to own IP
-    listen_socket.bind((IP, PORT))
+    listen_socket.bind((MY_IP, PORT))
 
     # Start listening for connections
     # Integer means to allow up to x un-accept()ed incoming TCP connections
@@ -97,7 +98,7 @@ try:
             for diff_file in file_diff:
                 file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 file_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                file_socket.bind((IP, FILE_TRANSFER_PORT))
+                file_socket.bind((MY_IP, FILE_TRANSFER_PORT))
                 file_socket.listen(1)
                 file_conn, file_addr = file_socket.accept()
                 fileWriter = open((FILE_PATH + diff_file), 'rb+')
@@ -110,6 +111,8 @@ try:
                 # Add or overwrite value of data
                 hash_files[diff_file] = file_diff[diff_file]
 
+            print('All files sent. Receiving files....')
+            time.sleep(2)
             ##########################################################
             #                Logic to receive file                   #
             ##########################################################
@@ -125,6 +128,7 @@ try:
                 fileWriter.close()
                 file_socket.close()
 
+            print('Files received.')
                 
 
 
