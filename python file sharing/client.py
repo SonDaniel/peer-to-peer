@@ -71,7 +71,7 @@ try:
     }))
 
     data_diff = pickle.loads(my_socket.recv(1024))
-    my_socket.close()
+
     print('data_diff is: {0}'.format(data_diff))
 
     ##########################################################
@@ -81,15 +81,14 @@ try:
         file_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         file_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         file_socket.connect((IP, FILE_TRANSFER_PORT))
-
-        print(fileName)
         fileWriter = open((FILE_PATH + fileName), 'wb+')
         file_data = file_socket.recv(1024)
-        print(file_data)
         while file_data:
             fileWriter.write(file_data)
             file_data = file_socket.recv(1024)
         fileWriter.close()
         file_socket.close()
+
+
 except socket.error as err:
     print("Discovery Connection to %s:%s failed: %s" % (IP, PORT, err))
