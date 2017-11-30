@@ -44,15 +44,14 @@ class Network:
     def get_files(self):
         while True:
             print('get_files function running.')
-            # Get list of file directory
-            files = os.listdir(self.FILE_PATH)
-            
-            # Go through each file and get stats
-            for x in files:
-                # Get stats for file
-                stats = os.stat((self.FILE_PATH + '/' + x))
-                # save file stats
-                self.hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
+            # walk through folder
+            for root, subdirs, files in os.walk(self.FILE_PATH):
+                for x in files:
+                    # get stats of file
+                    stats = os.stat((root + '/' + x))
+
+                    # append file with its modified time as a datetime
+                    self.hash_files[(root.replace(self.FILE_PATH, '') + '/' + x)] = datetime.datetime.fromtimestamp(stats.st_mtime)
 
             # Sleep process for 5 seconds
             time.sleep(5)
