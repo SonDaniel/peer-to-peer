@@ -52,7 +52,7 @@ class Network:
 
                     # append file with its modified time as a datetime
                     self.hash_files[(root.replace(self.FILE_PATH, '') + '/' + x)] = datetime.datetime.fromtimestamp(stats.st_mtime)
-                    
+
             # Sleep process for 5 seconds
             time.sleep(5)
 
@@ -74,7 +74,7 @@ class Network:
             try:
                 os.makedirs(self.FILE_PATH + result.group(1))
             except:
-                break
+                continue
 
     def create_socket(self):
         try:
