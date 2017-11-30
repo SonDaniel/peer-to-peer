@@ -21,11 +21,6 @@ def get_diff(obj_1, obj_2):
 
     return diff
 
-def datetime_handler(x):
-    if isinstance(x, datetime.datetime):
-        return x.isoformat()
-    raise TypeError("Unknown type")
-
 def get_files():
     print('get_files function running.')
     # Get list of file directory
@@ -37,8 +32,6 @@ def get_files():
         stats = os.stat((FILE_PATH + '/' + x))
         # save file stats
         hash_files[x] = datetime.datetime.fromtimestamp(stats.st_mtime)
-
-    print(hash_files)
 
 get_files()
 
