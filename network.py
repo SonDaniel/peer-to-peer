@@ -60,6 +60,9 @@ class Network:
         diff = {}
         for key in obj_1.keys():
             value = obj_1[key]
+            print('key is: {0}'.format(key))
+            print('obj 1 value: {0}'.format(obj_1[key]))
+            print('obj 2 value: {0}'.format(obj_2[key]))
             if key not in obj_2.keys():
                 diff[key] = value
             else:
@@ -91,7 +94,7 @@ class Network:
             for ip in self.localnet_ips:
                 try:
                     my_socket = self.create_socket()
-                    my_socket.settimeout(3)
+                    my_socket.settimeout(5)
                     # Try to connect to other ends discovery port 
                     my_socket.connect((ip, self.DISCOVER_PORT))
                     # Send all data
