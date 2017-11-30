@@ -1,6 +1,6 @@
 # TODO: Make a description of class and all
 import socket, socketserver, subprocess, ipaddress, os, re
-import multiprocessing, sys, datetime, time, pickle
+import multiprocessing, sys, time, pickle
 import threading
 
 class Network:
@@ -51,8 +51,9 @@ class Network:
                     stats = os.stat((root + '/' + x))
 
                     # append file with its modified time as a datetime
-                    self.hash_files[(root.replace(self.FILE_PATH, '') + '/' + x)] = datetime.datetime.fromtimestamp(stats.st_mtime)
+                    self.hash_files[(root.replace(self.FILE_PATH, '') + '/' + x)] = stats.st_mtime
 
+            print(self.hash_files)
             # Sleep process for 5 seconds
             time.sleep(5)
 
