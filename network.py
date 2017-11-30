@@ -4,6 +4,17 @@ import multiprocessing, sys, time, pickle
 import threading
 
 class Network:
+    """Global variables:
+    - DISCOVERY_PORT -- Port used for discovery to other nodes.
+    - FILE_TRANSFER_PORT -- Port used to transfer files to other nodes.
+    - TIMEOUT -- Integer used to set time out for socket or subprocess (seconds)
+    - CONCURRENCY -- Integer how many pings in parallel
+    - FILE_PATH -- path of sync folder
+    - base_ip -- the core ip
+    - my_ip -- current computer's ip
+    - localnet_ips -- an Array of IP strings
+    - hash_files -- object key/value. key: string of file name. value: modified time
+    """
     DISCOVER_PORT = 5000
     FILE_TRANSFER_PORT = 6000
     TIMEOUT = 5  # in seconds
@@ -12,15 +23,12 @@ class Network:
     base_ip = None
     my_ip = None
 
-    listen_socket = None
-    discover_socket = None
-    file_socket = None
     localnet_ips = None
-
     hash_files = {}
 
     # Network Constructor 
     def __init__(self):
+        """constructor of the network class."""
         print('Node setup...')
         print('Finding my IP...')
 
@@ -58,6 +66,11 @@ class Network:
             time.sleep(5)
 
     def get_diff(self, obj_1, obj_2):
+        """
+        gets obj_1 and compares key and value with obj_2.
+
+        returns difference of what obj_2 does not have of obj_1
+        """
         diff = {}
         for key in obj_1.keys():
             value = obj_1[key]
@@ -70,6 +83,9 @@ class Network:
         return diff
 
     def make_dirs(self, path):
+        """
+        Gets path and creates sub directory. Ignored creation if directory exists.
+        """
         result = re.search('^(.+)\/([^/]+)$', path)
         if result:
             try:
@@ -78,6 +94,9 @@ class Network:
                 print('directory exists.')
 
     def create_socket(self):
+        """
+        Creates socket object and returns socket.
+        """
         try:
             create_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             create_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -87,14 +106,22 @@ class Network:
             return None
 
     def connect_socket(self):
+        """
+        Goes through list of IPs and tries to connect.
+        If connection is successful, IP list and hash_file are sent to each other.
+        Differences are returned and file sharing occurs.
+        """
         while True:
-            print(self.localnet_ips)
             for ip in self.localnet_ips:
                 try:
+                    # Create socket
                     my_socket = self.create_socket()
-                    my_socket.settimeout(5)
+                    # Set timeout so no blocking occurs
+                    my_socket.settimeout(self.TIMEOUT)
+
                     # Try to connect to other ends discovery port 
                     my_socket.connect((ip, self.DISCOVER_PORT))
+
                     # Send all data
                     my_socket.sendall(pickle.dumps({
                         'ips': self.localnet_ips,
@@ -114,6 +141,7 @@ class Network:
                         'file_diff': pickle.dumps(file_diff)
                     }))
 
+                    # Receive data difference
                     data_diff = pickle.loads(my_socket.recv(1024))
 
                     # Concat difference of IP List
@@ -121,56 +149,88 @@ class Network:
                         self.localnet_ips.append(diff_ip)
 
                     ##########################################################
-                    #                Logic to receive file                   #
+                    #                START: Logic to receive file            #
                     ##########################################################
                     for fileName in pickle.loads(data_diff['file_diff']):
+                        # Create sub-directories if needed
                         self.make_dirs(fileName)
+
+                        # Create file socket
                         file_socket = self.create_socket()
                         file_socket.connect((ip, self.FILE_TRANSFER_PORT))
+
+                        # Create/Open file
                         fileWriter = open((self.FILE_PATH + fileName), 'wb+')
+
+                        # Grab data and write until done
                         file_data = file_socket.recv(1024)
                         while file_data:
                             fileWriter.write(file_data)
                             file_data = file_socket.recv(1024)
+                        
+                        # Close file opener and file_socket
                         fileWriter.close()
                         file_socket.close()
-
+                    ##########################################################
+                    #               END: Logic to receive file               #
+                    ##########################################################
 
                     print('All files saved.')
                     ##########################################################
-                    #                Logic to send file                      #
+                    #                START: Logic to send file               #
                     ##########################################################
                     for diff_file in file_diff:
+                        # Create file socket
                         file_socket = self.create_socket()
                         file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
                         file_socket.listen(1)
+
+                        # wait for connection
                         file_conn, file_addr = file_socket.accept()
+
+                        # open file to send
                         fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
+
+                        # read data and send file until done
                         fileRead = fileWriter.read(1024)
                         while fileRead:
                             file_conn.send(fileRead)
                             fileRead = fileWriter.read(1024)
+
+                        # Close file opener and file_socket
                         fileWriter.close()
                         file_conn.close()
+
                         # Add or overwrite value of data
                         self.hash_files[diff_file] = file_diff[diff_file]
-
+                    ##########################################################
+                    #                 END: Logic to send file                #
+                    ##########################################################
                     print('Files sent.')
 
+                    # Close discovery socket
                     my_socket.close()
+
                 except socket.error as err:
                     print("Discovery Connection to %s:%s failed: %s" % (ip, self.DISCOVER_PORT, err))
 
+                # Sleep discovery socket thread for 3 seconds
                 time.sleep(3)
 
     def listen_socket(self):
+        """
+        Listen to my IP with discovery port.
+        If connection happens, exchange IP list and hash_files.
+        Get differences and start file sharing.
+        """
         try:
+            # Create listener socket
             listen_socket = self.create_socket()
+
             # Bind socket to listen to own IP
             listen_socket.bind((self.my_ip, self.DISCOVER_PORT))
 
             # Start listening for connections
-            # Integer means to allow up to x un-accept()ed incoming TCP connections
             listen_socket.listen(1)
 
             # While loop keeps waiting for connection
@@ -181,8 +241,8 @@ class Network:
                 print('Connected Listener Protocol with ' + addr[0] + ':' + str(addr[1]))
 
                 with conn:
+                    # get data from other side
                     data = pickle.loads(conn.recv(1024))
-
 
                     # Send my data to other end
                     conn.sendall(pickle.dumps({
@@ -208,61 +268,91 @@ class Network:
                     }))
 
                     ##########################################################
-                    #                Logic to send file                      #
+                    #                START: Logic to send file               #
                     ##########################################################
                     for diff_file in file_diff:
+                        # create file_socket
                         file_socket = self.create_socket()
                         file_socket.bind((self.my_ip, self.FILE_TRANSFER_PORT))
                         file_socket.listen(1)
+
+                        # wait for connection
                         file_conn, file_addr = file_socket.accept()
+
+                        # open file and read and send file until done
                         fileWriter = open((self.FILE_PATH + diff_file), 'rb+')
                         fileRead = fileWriter.read(1024)
                         while fileRead:
                             file_conn.send(fileRead)
                             fileRead = fileWriter.read(1024)
+
+                        # close file opener and file_socket
                         fileWriter.close()
                         file_conn.close()
                         # Add or overwrite value of data
                         self.hash_files[diff_file] = file_diff[diff_file]
+                    ##########################################################
+                    #                END: Logic to send file                 #
+                    ##########################################################
 
                     print('All files sent. Receiving files....')
                     time.sleep(2)
                     ##########################################################
-                    #                Logic to receive file                   #
+                    #               START: Logic to receive file             #
                     ##########################################################
                     for fileName in pickle.loads(data_diff['file_diff']):
+                        # create sub-directory if needed
                         self.make_dirs(fileName)
+
+                        # create file_socket
                         file_socket = self.create_socket()
                         file_socket.connect((addr[0], self.FILE_TRANSFER_PORT))
+
+                        # open file and read and send file until done
                         fileWriter = open((self.FILE_PATH + fileName), 'wb+')
                         file_data = file_socket.recv(1024)
                         while file_data:
                             fileWriter.write(file_data)
                             file_data = file_socket.recv(1024)
+
+                        # close file opener and socket
                         fileWriter.close()
                         file_socket.close()
-
+                    ##########################################################
+                    #               END: Logic to receive file               #
+                    ##########################################################
                     print('Files received.')
 
         except socket.error as err:
-            # If you cannot bind, exit out of program
             print('Bind failed. Error Code : {0}'.format(err))
 
     def ping_network(self):
+        """
+        Pings network range from 1 - 255 using multiprocessors.
+        """
         # create range of ips from base ip - 1:255
         ips = (self.base_ip + '.%d' % i for i in range(1, 255))
 
         # Create multiprocessing pool that pings
         with multiprocessing.Pool(self.CONCURRENCY) as p:
+            # map each ip to processor of the function ping
             p.map(self.ping, ips)
 
     def ping(self, ip):
+        """
+        creates a sub-processor and pings given ip with given timeout.
+        """
         # create subprocess that pings at certain ips
         subprocess.call(
             ['ping', '-W', str(self.TIMEOUT), '-c', '1', ip],
             stdout=subprocess.DEVNULL)
 
     def scan_network(self):
+        """
+        Creates subprocessor to call command arp -a.
+        Using regex, find all the IPs specified.
+        Strip any white spaces and save in localnet_ip.
+        """
         # discover online IP's after ping
         arp_output = subprocess.check_output(['arp', '-a']).decode('utf-8')
         online_ip = []
