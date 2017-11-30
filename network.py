@@ -95,14 +95,9 @@ class Network:
                     # Recieve data
                     data = pickle.loads(my_socket.recv(1024))
 
-
-
                     # Calculate differences
                     ips_diff = set(self.localnet_ips) - set(data['ips'])
                     file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
-
-                    print('ips_diff is: {0}'.format(ips_diff))
-                    print('file_diff is: {0}'.format(file_diff))
 
                     # Send differences
                     my_socket.sendall(pickle.dumps({
@@ -115,8 +110,6 @@ class Network:
                     # Concat difference of IP List
                     for diff_ip in data_diff['ips_diff']:
                         self.localnet_ips.append(diff_ip)
-
-                    print('data_diff is: {0}'.format(data_diff))
 
                     ##########################################################
                     #                Logic to receive file                   #
@@ -191,20 +184,12 @@ class Network:
                     ips_diff = set(self.localnet_ips) - set(data['ips'])
                     file_diff = self.get_diff(self.hash_files, pickle.loads(data['files']))
 
-                    print('ips_diff is: {0}'.format(ips_diff))
-                    print('file_diff is: {0}'.format(file_diff))
-
                     # Receive difference object data from other end
                     data_diff = pickle.loads(conn.recv(1024))
-
-                    print('data_diff is: {0}'.format(data_diff))
-                    print(pickle.loads(data_diff['file_diff']))
 
                     # Concat difference of IP List
                     for diff_ip in data_diff['ips_diff']:
                         self.localnet_ips.append(diff_ip)
-
-                    print('localnet ip is: {0}'.format(self.localnet_ips))
 
                     # Send object of difference
                     conn.sendall(pickle.dumps({
