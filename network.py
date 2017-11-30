@@ -74,7 +74,7 @@ class Network:
             try:
                 os.makedirs(self.FILE_PATH + result.group(1))
             except:
-                continue
+                print('directory exists.')
 
     def create_socket(self):
         try:
