@@ -52,7 +52,7 @@ class Network:
 
                     # append file with its modified time as a datetime
                     self.hash_files[(root.replace(self.FILE_PATH, '') + '/' + x)] = datetime.datetime.fromtimestamp(stats.st_mtime)
-
+                    
             # Sleep process for 5 seconds
             time.sleep(5)
 
@@ -67,6 +67,14 @@ class Network:
                     diff[key] = value
 
         return diff
+
+    def make_dirs(self, path):
+        result = re.search('^(.+)\/([^/]+)$', path)
+        if result:
+            try:
+                os.makedirs(self.FILE_PATH + result.group(1))
+            except:
+                break
 
     def create_socket(self):
         try:
@@ -115,6 +123,7 @@ class Network:
                     #                Logic to receive file                   #
                     ##########################################################
                     for fileName in pickle.loads(data_diff['file_diff']):
+                        self.make_dirs(fileName)
                         file_socket = self.create_socket()
                         file_socket.connect((ip, self.FILE_TRANSFER_PORT))
                         fileWriter = open((self.FILE_PATH + fileName), 'wb+')
@@ -221,6 +230,7 @@ class Network:
                     #                Logic to receive file                   #
                     ##########################################################
                     for fileName in pickle.loads(data_diff['file_diff']):
+                        self.make_dirs(fileName)
                         file_socket = self.create_socket()
                         file_socket.connect((addr[0], self.FILE_TRANSFER_PORT))
                         fileWriter = open((self.FILE_PATH + fileName), 'wb+')
